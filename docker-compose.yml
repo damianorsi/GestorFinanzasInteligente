@@ -1,0 +1,77 @@
+name: gestor-finanzas-personales
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: gfp-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?definir en .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-finanzas}
+      MYSQL_USER: ${MYSQL_USER:-finanzas}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?definir en .env}
+      TZ: ${APP_TIMEZONE:-America/Argentina/Buenos_Aires}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      # La app nunca calcula fechas en SQL (ver PROMPT §5.2), pero dejamos la
+      # sesión alineada con APP_TIMEZONE para que cualquier inspección manual
+      # de la base coincida con lo que ve el backend.
+      - --default-time-zone=-03:00
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      # CMD-SHELL y no CMD: la forma exec no pasa por un shell, así que
+      # $MYSQL_ROOT_PASSWORD quedaría como texto literal y el ping fallaría.
+      # El `$$` es el escape de compose para que la variable la resuelva el
+      # contenedor y no el archivo compose.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  backend:
+    build:
+      context: ./backend
+      target: dev
+    container_name: gfp-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TZ: ${APP_TIMEZONE:-America/Argentina/Buenos_Aires}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      # Montaje para hot-reload en desarrollo. PYTHONPATH=/srv hace que este
+      # código tenga prioridad sobre la copia instalada en el venv.
+      - ./backend/app:/srv/app
+      - ./backend/tests:/srv/tests
+      - ./backend/alembic:/srv/alembic
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).status == 200 else 1)"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: /api/v1
+    container_name: gfp-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+
+volumes:
+  db_data:
