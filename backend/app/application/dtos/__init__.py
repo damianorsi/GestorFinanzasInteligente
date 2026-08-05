@@ -8,8 +8,10 @@ from app.application.dtos.auth import (
     TokenType,
     UserCredentials,
 )
+from app.application.dtos.categories import CategoryUsage
 
 __all__ = [
+    "CategoryUsage",
     "IssuedToken",
     "StoredRefreshToken",
     "TokenClaims",

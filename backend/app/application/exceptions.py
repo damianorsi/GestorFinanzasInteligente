@@ -40,11 +40,25 @@ class ResourceNotFoundError(ApplicationError):
     """
 
 
+class DuplicateResourceError(ApplicationError):
+    """Ya existe otro recurso con los mismos datos identificatorios."""
+
+
+class ResourceInUseError(ApplicationError):
+    """El recurso no se puede borrar porque otros dependen de él.
+
+    El mensaje enumera qué lo está bloqueando: un 409 que solo dice "está en
+    uso" obliga a la persona usuaria a adivinar qué tiene que borrar antes.
+    """
+
+
 __all__ = [
     "ApplicationError",
+    "DuplicateResourceError",
     "EmailAlreadyRegisteredError",
     "InactiveUserError",
     "InvalidCredentialsError",
     "InvalidTokenError",
+    "ResourceInUseError",
     "ResourceNotFoundError",
 ]

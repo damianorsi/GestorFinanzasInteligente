@@ -20,10 +20,12 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.application.exceptions import (
     ApplicationError,
+    DuplicateResourceError,
     EmailAlreadyRegisteredError,
     InactiveUserError,
     InvalidCredentialsError,
     InvalidTokenError,
+    ResourceInUseError,
     ResourceNotFoundError,
 )
 from app.domain.exceptions import DomainError
@@ -124,6 +126,8 @@ _MAPEO_APLICACION: dict[type[ApplicationError], tuple[int, str]] = {
     InvalidTokenError: (status.HTTP_401_UNAUTHORIZED, "invalid_token"),
     InactiveUserError: (status.HTTP_403_FORBIDDEN, "inactive_user"),
     ResourceNotFoundError: (status.HTTP_404_NOT_FOUND, "not_found"),
+    DuplicateResourceError: (status.HTTP_409_CONFLICT, "duplicate_resource"),
+    ResourceInUseError: (status.HTTP_409_CONFLICT, "resource_in_use"),
 }
 
 

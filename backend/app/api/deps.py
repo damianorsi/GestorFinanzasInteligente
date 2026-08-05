@@ -29,6 +29,13 @@ from app.application.use_cases.auth.login_user import LoginUser
 from app.application.use_cases.auth.logout_user import LogoutUser
 from app.application.use_cases.auth.refresh_tokens import RefreshTokens
 from app.application.use_cases.auth.register_user import RegisterUser
+from app.application.use_cases.categories import (
+    CreateCategory,
+    DeleteCategory,
+    GetCategory,
+    ListCategories,
+    UpdateCategory,
+)
 from app.core.config import Settings, get_settings
 from app.domain.entities import User
 from app.infrastructure.clock import get_clock
@@ -118,6 +125,26 @@ def get_refresh_tokens(
 
 def get_logout_user(refresh: RefreshTokens_, tokens: Tokens, clock: AppClock) -> LogoutUser:
     return LogoutUser(refresh_tokens=refresh, tokens=tokens, clock=clock)
+
+
+def get_list_categories(categories: Categories) -> ListCategories:
+    return ListCategories(categories)
+
+
+def get_get_category(categories: Categories) -> GetCategory:
+    return GetCategory(categories)
+
+
+def get_create_category(categories: Categories) -> CreateCategory:
+    return CreateCategory(categories)
+
+
+def get_update_category(categories: Categories) -> UpdateCategory:
+    return UpdateCategory(categories)
+
+
+def get_delete_category(categories: Categories) -> DeleteCategory:
+    return DeleteCategory(categories)
 
 
 # --- Usuario autenticado ---------------------------------------------------
