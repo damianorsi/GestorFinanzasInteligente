@@ -5,17 +5,17 @@ from __future__ import annotations
 import asyncio
 from logging.config import fileConfig
 
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from alembic import context
 from app.core.config import get_settings
-from app.infrastructure.db.base import Base
 
-# Los modelos ORM se importan acá para que queden registrados en
-# Base.metadata y el autogenerate los vea. Se suman en la fase 2.
-# from app.infrastructure.db import models
+# Import con efecto colateral: registra todos los modelos en Base.metadata
+# para que el autogenerate los vea. No borrar aunque parezca sin uso.
+from app.infrastructure.db import models  # noqa: F401
+from app.infrastructure.db.base import Base
 
 config = context.config
 

@@ -86,6 +86,12 @@ docker compose exec backend pytest
 | Nueva migración | `docker compose exec backend alembic revision --autogenerate -m "descripcion"` |
 | Aplicar migraciones | `docker compose exec backend alembic upgrade head` |
 
+Los tests corren contra una base **separada** (`finanzas_test`), no contra la de
+desarrollo: la suite trunca todas las tablas entre casos. El nombre se deriva
+solo, agregándole `_test` al de `DATABASE_URL`, así que no depende de que nadie
+se acuerde de setear una variable. La base la crea `db/init/` la primera vez que
+se inicializa el volumen de MySQL.
+
 ### Frontend
 
 ```bash
@@ -163,7 +169,7 @@ Consecuencias operativas de esas decisiones:
 Plan de 14 fases (detalle en `docs/PROMPT.md` §18).
 
 - [x] **Fase 1 — Scaffolding**: estructura, docker compose, `.env.example`, health check, CI
-- [ ] Fase 2 — Dominio y persistencia (`Money`, `Clock`, modelos, migraciones)
+- [x] **Fase 2 — Dominio y persistencia**: `Money`, `Clock`, entidades, modelos, mappers, migración inicial
 - [ ] Fase 3 — Autenticación
 - [ ] Fase 4 — Categorías
 - [ ] Fase 5 — Transacciones
