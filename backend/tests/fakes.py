@@ -10,8 +10,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import date, datetime, timedelta
 
-from app.application.dtos import StoredRefreshToken, UserCredentials
+from app.application.dtos import CategoryUsage, StoredRefreshToken, UserCredentials
 from app.domain.entities import Category, User
+from app.domain.enums import TransactionType
 
 
 class FixedClock:
@@ -89,12 +90,72 @@ class FakeUserRepository:
 class FakeCategoryRepository:
     def __init__(self) -> None:
         self.categorias: list[Category] = []
+        self.usos: dict[int, CategoryUsage] = {}
+        self._siguiente_id = 1
+
+    def _asignar_id(self, categoria: Category) -> Category:
+        if categoria.id is None:
+            categoria.id = self._siguiente_id
+            self._siguiente_id += 1
+        return categoria
 
     async def create_many(self, categories: Sequence[Category]) -> None:
-        self.categorias.extend(categories)
+        for categoria in categories:
+            self.categorias.append(self._asignar_id(categoria))
+
+    async def create(self, category: Category) -> Category:
+        self.categorias.append(self._asignar_id(category))
+        return category
+
+    async def update(self, category: Category) -> Category:
+        for indice, existente in enumerate(self.categorias):
+            if existente.id == category.id:
+                self.categorias[indice] = category
+                return category
+        raise ValueError("La categoría no existe.")
+
+    async def delete(self, user_id: int, category_id: int) -> None:
+        self.categorias = [
+            c for c in self.categorias if not (c.id == category_id and c.user_id == user_id)
+        ]
 
     async def count_for_user(self, user_id: int) -> int:
         return sum(1 for c in self.categorias if c.user_id == user_id)
+
+    async def list_for_user(
+        self, user_id: int, type: TransactionType | None = None
+    ) -> list[Category]:
+        propias = [c for c in self.categorias if c.user_id == user_id]
+        if type is not None:
+            propias = [c for c in propias if c.type is type]
+        # Mismo criterio que el repositorio real: ingresos antes que gastos.
+        # Ordenar por `type.value` daría el orden inverso y los tests unitarios
+        # estarían validando algo distinto de lo que hace producción.
+        return sorted(
+            propias,
+            key=lambda c: (0 if c.type is TransactionType.INCOME else 1, c.name),
+        )
+
+    async def get_for_user(self, user_id: int, category_id: int) -> Category | None:
+        for categoria in self.categorias:
+            if categoria.id == category_id and categoria.user_id == user_id:
+                return categoria
+        return None
+
+    async def exists_with_name(
+        self,
+        user_id: int,
+        name: str,
+        type: TransactionType,
+        exclude_id: int | None = None,
+    ) -> bool:
+        return any(
+            c.user_id == user_id and c.name == name and c.type is type and c.id != exclude_id
+            for c in self.categorias
+        )
+
+    async def count_usages(self, category_id: int) -> CategoryUsage:
+        return self.usos.get(category_id, CategoryUsage(0, 0, 0))
 
 
 class FakeRefreshTokenRepository:
