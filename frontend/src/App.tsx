@@ -1,11 +1,15 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import { AppLayout } from '@/layout/AppLayout'
+import { BudgetsPage } from '@/pages/BudgetsPage'
+import { CategoriesPage } from '@/pages/CategoriesPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { EnConstruccionPage } from '@/pages/EnConstruccionPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { RegisterPage } from '@/pages/RegisterPage'
+import { ReportsPage } from '@/pages/ReportsPage'
+import { TransactionsPage } from '@/pages/TransactionsPage'
 import { RutaPrivada, RutaPublica } from '@/routes/guards'
 
 export function App() {
@@ -21,22 +25,10 @@ export function App() {
       <Route element={<RutaPrivada />}>
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route
-            path="/transactions"
-            element={<EnConstruccionPage titulo="Movimientos" fase="fase 9" />}
-          />
-          <Route
-            path="/categories"
-            element={<EnConstruccionPage titulo="Categorías" fase="fase 9" />}
-          />
-          <Route
-            path="/budgets"
-            element={<EnConstruccionPage titulo="Presupuestos" fase="fase 9" />}
-          />
-          <Route
-            path="/reports"
-            element={<EnConstruccionPage titulo="Reportes" fase="fase 9" />}
-          />
+          <Route path="/transactions" element={<TransactionsPage />} />
+          <Route path="/categories" element={<CategoriesPage />} />
+          <Route path="/budgets" element={<BudgetsPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
           <Route
             path="/recurring"
             element={<EnConstruccionPage titulo="Movimientos recurrentes" fase="fase 13" />}

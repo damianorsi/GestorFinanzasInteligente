@@ -1,6 +1,16 @@
 import { HttpResponse, http } from 'msw'
 
-import type { PeriodSummary, TokenResponse, User } from '@/types/api'
+import type {
+  Budget,
+  BudgetProgress,
+  Category,
+  CategoryBreakdown,
+  MonthlyTrend,
+  PeriodSummary,
+  TokenResponse,
+  Transaction,
+  User,
+} from '@/types/api'
 
 export const BASE = '/api/v1'
 
@@ -30,13 +40,129 @@ export const RESUMEN: PeriodSummary = {
 /** Contador de renovaciones, para verificar que no se dispare más de una. */
 export const contadores = { refresh: 0 }
 
-export function reiniciarContadores(): void {
-  contadores.refresh = 0
+/**
+ * Store en memoria.
+ *
+ * Los handlers de CRUD operan sobre esto en vez de devolver constantes: así un
+ * test puede crear algo y verificar que aparece en el listado, que es
+ * exactamente lo que hace la persona usuaria.
+ */
+interface Store {
+  categorias: Category[]
+  movimientos: Transaction[]
+  presupuestos: Budget[]
+  desglose: CategoryBreakdown
+  tendencia: MonthlyTrend
+  progreso: BudgetProgress
 }
 
+function estadoInicial(): Store {
+  return {
+    categorias: [
+      { id: 10, name: 'Sueldo', type: 'INCOME', color: '#1c9e6f', is_default: true },
+      { id: 20, name: 'Alimentación', type: 'EXPENSE', color: '#d1603d', is_default: true },
+      { id: 21, name: 'Ocio', type: 'EXPENSE', color: '#7a5ba6', is_default: true },
+    ],
+    movimientos: [
+      {
+        id: 100,
+        type: 'EXPENSE',
+        amount: '1234.56',
+        currency: 'ARS',
+        occurred_on: '2026-08-05',
+        category_id: 20,
+        description: 'Supermercado',
+        is_recurring: false,
+      },
+      {
+        id: 101,
+        type: 'INCOME',
+        amount: '850000.00',
+        currency: 'ARS',
+        occurred_on: '2026-08-01',
+        category_id: 10,
+        description: 'Sueldo agosto',
+        is_recurring: true,
+      },
+    ],
+    presupuestos: [
+      { id: 200, category_id: 20, period_month: '2026-08', amount: '100000.00', currency: 'ARS' },
+    ],
+    desglose: {
+      currency: 'ARS',
+      date_from: '2026-08-01',
+      date_to: '2026-08-31',
+      entries: [
+        {
+          category_id: 20,
+          category_name: 'Alimentación',
+          type: 'EXPENSE',
+          total: '85000.00',
+          percentage: '75.00',
+          transaction_count: 4,
+        },
+        {
+          category_id: 21,
+          category_name: 'Ocio',
+          type: 'EXPENSE',
+          total: '28333.33',
+          percentage: '25.00',
+          transaction_count: 2,
+        },
+      ],
+    },
+    tendencia: {
+      currency: 'ARS',
+      entries: [
+        { period: '2026-07', income: '800000.00', expense: '400000.00', balance: '400000.00' },
+        { period: '2026-08', income: '850000.00', expense: '450000.50', balance: '399999.50' },
+      ],
+    },
+    progreso: {
+      currency: 'ARS',
+      period_month: '2026-08',
+      entries: [
+        {
+          budget_id: 200,
+          category_id: 20,
+          category_name: 'Alimentación',
+          budgeted: '100000.00',
+          spent: '130000.00',
+          remaining: '-30000.00',
+          percentage: '130.00',
+          status: 'EXCEEDED',
+        },
+        {
+          budget_id: 201,
+          category_id: 21,
+          category_name: 'Ocio',
+          budgeted: '50000.00',
+          spent: '42000.00',
+          remaining: '8000.00',
+          percentage: '84.00',
+          status: 'WARNING',
+        },
+      ],
+      unbudgeted: [{ category_id: 22, category_name: 'Transporte', spent: '40000.00' }],
+      exceeded_count: 1,
+    },
+  }
+}
+
+export let store: Store = estadoInicial()
+
+export function reiniciarContadores(): void {
+  contadores.refresh = 0
+  store = estadoInicial()
+}
+
+let siguienteId = 1000
+const nuevoId = () => (siguienteId += 1)
+
 export const handlers = [
+  // --- Autenticación -------------------------------------------------------
   http.post(`${BASE}/auth/login`, async ({ request }) => {
-    const cuerpo = (await request.json()) as { email: string; password: string }
+    const cuerpo = (await request.json()) as { password: string }
     if (cuerpo.password === 'incorrecta') {
       return HttpResponse.json(
         { code: 'invalid_credentials', message: 'Email o contraseña incorrectos.', details: [] },
@@ -78,5 +204,162 @@ export const handlers = [
     return HttpResponse.json(USUARIO)
   }),
 
+  // --- Categorías ----------------------------------------------------------
+  http.get(`${BASE}/categories`, ({ request }) => {
+    const tipo = new URL(request.url).searchParams.get('type')
+    return HttpResponse.json(
+      tipo ? store.categorias.filter((categoria) => categoria.type === tipo) : store.categorias,
+    )
+  }),
+
+  http.post(`${BASE}/categories`, async ({ request }) => {
+    const cuerpo = (await request.json()) as Omit<Category, 'id' | 'is_default'>
+    const repetida = store.categorias.some(
+      (categoria) => categoria.name === cuerpo.name && categoria.type === cuerpo.type,
+    )
+    if (repetida) {
+      return HttpResponse.json(
+        {
+          code: 'duplicate_resource',
+          message: `Ya tenés una categoría llamada «${cuerpo.name}».`,
+          details: [],
+        },
+        { status: 409 },
+      )
+    }
+    const creada: Category = { ...cuerpo, id: nuevoId(), is_default: false }
+    store.categorias.push(creada)
+    return HttpResponse.json(creada, { status: 201 })
+  }),
+
+  http.patch(`${BASE}/categories/:id`, async ({ params, request }) => {
+    const cuerpo = (await request.json()) as { name?: string; color?: string }
+    const categoria = store.categorias.find((c) => c.id === Number(params.id))
+    if (!categoria) return new HttpResponse(null, { status: 404 })
+    Object.assign(categoria, cuerpo)
+    return HttpResponse.json(categoria)
+  }),
+
+  http.delete(`${BASE}/categories/:id`, ({ params }) => {
+    const id = Number(params.id)
+    if (store.movimientos.some((movimiento) => movimiento.category_id === id)) {
+      return HttpResponse.json(
+        {
+          code: 'resource_in_use',
+          message:
+            'No se puede borrar «Alimentación»: tiene 1 movimiento asociados. ' +
+            'Reasignalos o borralos antes.',
+          details: [],
+        },
+        { status: 409 },
+      )
+    }
+    store.categorias = store.categorias.filter((categoria) => categoria.id !== id)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // --- Movimientos ---------------------------------------------------------
+  http.get(`${BASE}/transactions`, ({ request }) => {
+    const params = new URL(request.url).searchParams
+    let resultado = [...store.movimientos]
+
+    const tipo = params.get('type')
+    if (tipo) resultado = resultado.filter((movimiento) => movimiento.type === tipo)
+
+    const categoria = params.get('category_id')
+    if (categoria) resultado = resultado.filter((m) => m.category_id === Number(categoria))
+
+    const texto = params.get('q')
+    if (texto) {
+      resultado = resultado.filter((m) =>
+        m.description.toLowerCase().includes(texto.toLowerCase()),
+      )
+    }
+
+    const offset = Number(params.get('offset') ?? 0)
+    const limit = Number(params.get('limit') ?? 20)
+    return HttpResponse.json({
+      entries: resultado.slice(offset, offset + limit),
+      offset,
+      limit,
+      totalCount: resultado.length,
+    })
+  }),
+
+  http.post(`${BASE}/transactions`, async ({ request }) => {
+    const cuerpo = (await request.json()) as Omit<Transaction, 'id' | 'currency' | 'is_recurring'>
+    const creado: Transaction = { ...cuerpo, id: nuevoId(), currency: 'ARS', is_recurring: false }
+    store.movimientos.unshift(creado)
+    return HttpResponse.json(creado, { status: 201 })
+  }),
+
+  http.patch(`${BASE}/transactions/:id`, async ({ params, request }) => {
+    const cuerpo = (await request.json()) as Partial<Transaction>
+    const movimiento = store.movimientos.find((m) => m.id === Number(params.id))
+    if (!movimiento) return new HttpResponse(null, { status: 404 })
+    Object.assign(movimiento, cuerpo)
+    return HttpResponse.json(movimiento)
+  }),
+
+  http.delete(`${BASE}/transactions/:id`, ({ params }) => {
+    store.movimientos = store.movimientos.filter((m) => m.id !== Number(params.id))
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.get(`${BASE}/transactions/export`, () =>
+    HttpResponse.text('id,fecha\n1,2026-08-05\n', {
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': 'attachment; filename="movimientos.csv"',
+      },
+    }),
+  ),
+
+  // --- Reportes ------------------------------------------------------------
   http.get(`${BASE}/reports/summary`, () => HttpResponse.json(RESUMEN)),
+  http.get(`${BASE}/reports/by-category`, () => HttpResponse.json(store.desglose)),
+  http.get(`${BASE}/reports/monthly-trend`, () => HttpResponse.json(store.tendencia)),
+
+  // --- Presupuestos --------------------------------------------------------
+  http.get(`${BASE}/budgets`, ({ request }) => {
+    const periodo = new URL(request.url).searchParams.get('period_month')
+    return HttpResponse.json(
+      store.presupuestos.filter((presupuesto) => presupuesto.period_month === periodo),
+    )
+  }),
+
+  http.get(`${BASE}/budgets/progress`, () => HttpResponse.json(store.progreso)),
+
+  http.post(`${BASE}/budgets`, async ({ request }) => {
+    const cuerpo = (await request.json()) as Omit<Budget, 'id' | 'currency'>
+    const creado: Budget = { ...cuerpo, id: nuevoId(), currency: 'ARS' }
+    store.presupuestos.push(creado)
+    return HttpResponse.json(creado, { status: 201 })
+  }),
+
+  http.patch(`${BASE}/budgets/:id`, async ({ params, request }) => {
+    const cuerpo = (await request.json()) as { amount: string }
+    const presupuesto = store.presupuestos.find((p) => p.id === Number(params.id))
+    if (!presupuesto) return new HttpResponse(null, { status: 404 })
+    presupuesto.amount = cuerpo.amount
+    return HttpResponse.json(presupuesto)
+  }),
+
+  http.delete(`${BASE}/budgets/:id`, ({ params }) => {
+    store.presupuestos = store.presupuestos.filter((p) => p.id !== Number(params.id))
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.post(`${BASE}/budgets/copy-from`, async ({ request }) => {
+    const cuerpo = (await request.json()) as { from_period: string; to_period: string }
+    return HttpResponse.json(
+      {
+        ...cuerpo,
+        currency: 'ARS',
+        created: 2,
+        skipped: [{ category_id: 20, category_name: 'Alimentación' }],
+      },
+      { status: 201 },
+    )
+  }),
 ]
