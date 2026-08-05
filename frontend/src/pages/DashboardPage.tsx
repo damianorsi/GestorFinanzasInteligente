@@ -1,18 +1,29 @@
-import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 
-import { Cargando, ErrorVisible } from '@/components/Feedback'
+import { Cargando, ErrorVisible, SinDatos } from '@/components/Feedback'
 import { useAuth } from '@/features/auth/useAuth'
-import { request } from '@/services/api'
-import type { PeriodSummary } from '@/types/api'
+import { useAvanceDePresupuestos } from '@/features/budgets/api'
+
+import {
+  CategoryPieChartLazy,
+  MonthlyTrendChartLazy,
+} from '@/features/reports/LazyCharts'
+import {
+  useDesglosePorCategoria,
+  useResumen,
+  useTendenciaMensual,
+} from '@/features/reports/api'
 import { formatDate, formatMoney, isNegative } from '@/utils/format'
+import { periodoActual } from '@/utils/periods'
 
 export function DashboardPage() {
   const { usuario } = useAuth()
+  const resumen = useResumen()
+  const desglose = useDesglosePorCategoria()
+  const tendencia = useTendenciaMensual(6)
+  const avance = useAvanceDePresupuestos(periodoActual())
 
-  const resumen = useQuery({
-    queryKey: ['reports', 'summary'],
-    queryFn: () => request<PeriodSummary>('/reports/summary'),
-  })
+  const gastos = (desglose.data?.entries ?? []).filter((e) => e.type === 'EXPENSE')
 
   return (
     <section className="pagina">
@@ -59,6 +70,41 @@ export function DashboardPage() {
             </article>
           </div>
         </>
+      )}
+
+      {avance.isSuccess && avance.data.exceeded_count > 0 && (
+        <p className="aviso aviso--alerta" role="status">
+          Te pasaste del tope en {avance.data.exceeded_count}{' '}
+          {avance.data.exceeded_count === 1 ? 'categoría' : 'categorías'}.{' '}
+          <Link to="/budgets">Ver presupuestos</Link>
+        </p>
+      )}
+
+      {desglose.isSuccess && gastos.length === 0 && (
+        <SinDatos
+          titulo="Todavía no registraste gastos este mes"
+          detalle="Cargá tu primer movimiento para ver el desglose."
+          accion={
+            <Link className="boton boton--primario" to="/transactions">
+              Registrar un movimiento
+            </Link>
+          }
+        />
+      )}
+
+      {desglose.isSuccess && gastos.length > 0 && (
+        <CategoryPieChartLazy
+          entradas={gastos}
+          moneda={desglose.data.currency}
+          titulo="Gastos por categoría"
+        />
+      )}
+
+      {tendencia.isSuccess && (
+        <MonthlyTrendChartLazy
+          entradas={tendencia.data.entries}
+          moneda={tendencia.data.currency}
+        />
       )}
     </section>
   )

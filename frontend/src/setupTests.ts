@@ -4,6 +4,19 @@ import { cleanup } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll } from 'vitest'
 
 import { clearSession } from '@/services/session'
+
+/**
+ * jsdom no implementa ResizeObserver y el contenedor responsivo de Recharts lo
+ * usa, así que sin este polyfill cualquier pantalla con un gráfico revienta al
+ * montarse. No mide nada —en jsdom no hay layout— pero alcanza: los gráficos
+ * se testean por su tabla equivalente, no por el SVG.
+ */
+class ResizeObserverFalso {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+globalThis.ResizeObserver ??= ResizeObserverFalso as unknown as typeof ResizeObserver
 import { reiniciarContadores } from '@/test/handlers'
 import { server } from '@/test/server'
 

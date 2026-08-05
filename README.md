@@ -194,7 +194,7 @@ Plan de 14 fases (detalle en `docs/PROMPT.md` §18).
 - [x] **Fase 6 — Reportes y export CSV**: resumen, agregado por categoría, tendencia mensual sin agujeros y export con formato para Excel
 - [x] **Fase 7 — Presupuestos (backend)**: ABM, progreso con estados, copia entre meses
 - [x] **Fase 8 — Frontend base**: routing con guards, cliente HTTP con refresh, formateo es-AR, login y registro
-- [ ] Fase 9 — Frontend features
+- [x] **Fase 9 — Frontend features**: dashboard con gráficos, movimientos con filtros, ABM de categorías, presupuestos y reportes
 - [ ] Fase 10 — Asistente LangChain
 - [ ] Fase 11 — Frontend chat
 - [ ] Fase 12 — Recurrentes (backend)

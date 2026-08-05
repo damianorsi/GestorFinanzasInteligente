@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { HttpResponse, http } from 'msw'
 import { describe, expect, it } from 'vitest'
@@ -125,10 +125,17 @@ describe('DashboardPage', () => {
     // Act
     renderConProviders(<App />, { ruta: '/dashboard' })
 
-    // Assert
+    // Assert: se acota a las tarjetas del resumen, porque los mismos montos
+    // aparecen también en la tabla equivalente del gráfico de tendencia.
     await screen.findByRole('heading', { name: /hola, damián/i })
-    await waitFor(() => expect(screen.getByText(/850\.000,00/)).toBeVisible())
-    expect(screen.getByText(/450\.000,50/)).toBeVisible()
+    const tarjetaIngresos = (await screen.findByRole('heading', { name: 'Ingresos' })).closest(
+      'article',
+    )
+    await waitFor(() =>
+      expect(within(tarjetaIngresos as HTMLElement).getByText(/850\.000,00/)).toBeVisible(),
+    )
+    const tarjetaGastos = screen.getByRole('heading', { name: 'Gastos' }).closest('article')
+    expect(within(tarjetaGastos as HTMLElement).getByText(/450\.000,50/)).toBeVisible()
   })
 
   it('ofrece reintentar si el resumen falla', async () => {
