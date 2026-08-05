@@ -182,7 +182,7 @@ Plan de 14 fases (detalle en `docs/PROMPT.md` §18).
 - [x] **Fase 3 — Autenticación**: registro, login, refresh con rotación, logout, `get_current_user`, seed de categorías
 - [x] **Fase 4 — Categorías**: ABM completo, unicidad por usuario y tipo, borrado bloqueado con detalle
 - [x] **Fase 5 — Transacciones**: CRUD, filtros combinables, orden validado y paginación estable
-- [ ] Fase 6 — Reportes y export CSV
+- [x] **Fase 6 — Reportes y export CSV**: resumen, agregado por categoría, tendencia mensual sin agujeros y export con formato para Excel
 - [ ] Fase 7 — Presupuestos (backend)
 - [ ] Fase 8 — Frontend base
 - [ ] Fase 9 — Frontend features

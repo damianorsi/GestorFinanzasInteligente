@@ -224,7 +224,7 @@ GET    /reports/summary          200 (ingresos, gastos, balance del período)
 GET    /reports/by-category      200 (agregado por categoría)
 GET    /reports/monthly-trend    200 (serie mensual ingresos vs gastos)
 
-GET    /transactions/export      200 text/csv (respeta los mismos filtros que el listado)
+GET    /transactions/export      200 text/csv (mismos filtros que el listado; `format=standard|excel_es`)
 
 POST   /chat                     200 (consulta al asistente)
 GET    /chat/history             200
@@ -236,6 +236,11 @@ GET    /chat/history             200
 - **`/categories` es la excepción y devuelve un array plano.** La colección está acotada por usuario (arranca en 10 y realistamente no pasa de unas decenas) y el frontend la necesita entera para poblar los selectores de alta de movimiento. Paginarla obligaría a iterar para armar un `<select>`, o —peor— a truncarlo en silencio.
 - **El `type` de una categoría es inmutable.** Pasar una de gasto a ingreso convertiría todos sus movimientos históricos en lo contrario de lo que se registró, y ni el balance ni los reportes tendrían forma de detectarlo. Para cambiar de tipo hay que crear otra categoría y mover los movimientos.
 - Los schemas de request llevan `extra="forbid"`: un campo desconocido devuelve 422 en vez de ignorarse. Sin eso, mandar `type` en un PATCH de categoría parecería funcionar y no cambiaría nada.
+- **El export acepta dos formatos.** `standard` (default) usa coma como separador y punto decimal: es RFC 4180 y lo lee cualquier parser. `excel_es` usa punto y coma y coma decimal, que es lo que Excel en español espera al abrir el archivo con doble clic; con el formato estándar mostraría todo en una sola columna. Van juntos en un solo parámetro y no como dos opciones sueltas porque elegir uno sin el otro produce un archivo roto: con `;` y punto decimal Excel parte la columna del monto.
+- El export **no** se pagina, pero tiene tope (`EXPORT_MAX_ROWS`, default 50 000): al superarlo devuelve 422 `export_too_large` pidiendo acotar el filtro. Se avisa en vez de truncar porque un CSV recortado en silencio parece completo.
+- Los reportes sin período explícito usan **el mes en curso**, resuelto con el `Clock` en `APP_TIMEZONE`. Un período sin movimientos devuelve ceros y listas vacías, nunca un error.
+- `/reports/monthly-trend` **rellena con ceros los meses sin movimientos**: un `GROUP BY` solo devuelve los meses que tienen filas y el gráfico quedaría con agujeros donde en realidad hubo actividad nula.
+- El porcentaje de `/reports/by-category` lo calcula el backend, **por tipo por separado**: mezclar ingresos y gastos en un mismo 100% no significaría nada, y calcularlo en el frontend haría que cada consumidor pudiera redondear distinto.
 - Fechas en ISO `YYYY-MM-DD`; montos como string con punto decimal. **Nunca formato localizado en el JSON.**
 - Códigos de estado: 200, 201 (+ `Location`), 204, 400, 401, 403, 404, 409, **422 para validaciones**, 429 (rate limit).
 - Formato de error uniforme: `{ "code": "snake_case_en_ingles", "message": "texto en español", "details": [...] }` vía exception handlers globales. Nunca stacktraces.
