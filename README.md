@@ -183,7 +183,7 @@ Plan de 14 fases (detalle en `docs/PROMPT.md` §18).
 - [x] **Fase 4 — Categorías**: ABM completo, unicidad por usuario y tipo, borrado bloqueado con detalle
 - [x] **Fase 5 — Transacciones**: CRUD, filtros combinables, orden validado y paginación estable
 - [x] **Fase 6 — Reportes y export CSV**: resumen, agregado por categoría, tendencia mensual sin agujeros y export con formato para Excel
-- [ ] Fase 7 — Presupuestos (backend)
+- [x] **Fase 7 — Presupuestos (backend)**: ABM, progreso con estados, copia entre meses
 - [ ] Fase 8 — Frontend base
 - [ ] Fase 9 — Frontend features
 - [ ] Fase 10 — Asistente LangChain

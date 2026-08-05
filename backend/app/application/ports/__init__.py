@@ -1,5 +1,6 @@
 """Puertos (interfaces Protocol) que implementa infrastructure."""
 
+from app.application.ports.budget_repository import BudgetRepository
 from app.application.ports.category_repository import CategoryRepository
 from app.application.ports.clock import Clock
 from app.application.ports.password_hasher import PasswordHasher
@@ -11,6 +12,7 @@ from app.application.ports.transaction_repository import TransactionRepository
 from app.application.ports.user_repository import UserRepository
 
 __all__ = [
+    "BudgetRepository",
     "CategoryRepository",
     "Clock",
     "PasswordHasher",
