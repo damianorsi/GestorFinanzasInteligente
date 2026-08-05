@@ -44,6 +44,22 @@ class DuplicateResourceError(ApplicationError):
     """Ya existe otro recurso con los mismos datos identificatorios."""
 
 
+class UnsupportedCurrencyError(ApplicationError):
+    """La moneda pedida no está habilitada.
+
+    En v1 solo ARS. El esquema y el dominio ya soportan más, pero habilitarlas
+    exige antes decidir la política de tipo de cambio.
+    """
+
+
+class InvalidReferenceError(ApplicationError):
+    """Un identificador del payload no apunta a un recurso propio y usable.
+
+    Es 422 y no 404 a propósito: el recurso pedido —el movimiento— no es el que
+    falta; lo que está mal es un dato del cuerpo del request.
+    """
+
+
 class ResourceInUseError(ApplicationError):
     """El recurso no se puede borrar porque otros dependen de él.
 
@@ -58,7 +74,9 @@ __all__ = [
     "EmailAlreadyRegisteredError",
     "InactiveUserError",
     "InvalidCredentialsError",
+    "InvalidReferenceError",
     "InvalidTokenError",
     "ResourceInUseError",
     "ResourceNotFoundError",
+    "UnsupportedCurrencyError",
 ]

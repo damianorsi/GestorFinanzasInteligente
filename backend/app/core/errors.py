@@ -24,9 +24,11 @@ from app.application.exceptions import (
     EmailAlreadyRegisteredError,
     InactiveUserError,
     InvalidCredentialsError,
+    InvalidReferenceError,
     InvalidTokenError,
     ResourceInUseError,
     ResourceNotFoundError,
+    UnsupportedCurrencyError,
 )
 from app.domain.exceptions import DomainError
 
@@ -67,11 +69,6 @@ class ValidationError(AppError):
     status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
     code = "validation_error"
     message = "Los datos enviados no son válidos."
-
-
-class UnsupportedCurrencyError(ValidationError):
-    code = "unsupported_currency"
-    message = "La moneda solicitada no está habilitada."
 
 
 class UnauthorizedError(AppError):
@@ -128,6 +125,11 @@ _MAPEO_APLICACION: dict[type[ApplicationError], tuple[int, str]] = {
     ResourceNotFoundError: (status.HTTP_404_NOT_FOUND, "not_found"),
     DuplicateResourceError: (status.HTTP_409_CONFLICT, "duplicate_resource"),
     ResourceInUseError: (status.HTTP_409_CONFLICT, "resource_in_use"),
+    UnsupportedCurrencyError: (
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+        "unsupported_currency",
+    ),
+    InvalidReferenceError: (status.HTTP_422_UNPROCESSABLE_CONTENT, "invalid_reference"),
 }
 
 

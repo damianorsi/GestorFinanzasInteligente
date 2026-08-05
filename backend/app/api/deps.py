@@ -21,8 +21,10 @@ from app.application.ports import (
     CategoryRepository,
     Clock,
     PasswordHasher,
+    RecurringOccurrenceRepository,
     RefreshTokenRepository,
     TokenService,
+    TransactionRepository,
     UserRepository,
 )
 from app.application.use_cases.auth.login_user import LoginUser
@@ -36,12 +38,21 @@ from app.application.use_cases.categories import (
     ListCategories,
     UpdateCategory,
 )
+from app.application.use_cases.transactions import (
+    CreateTransaction,
+    DeleteTransaction,
+    GetTransaction,
+    ListTransactions,
+    UpdateTransaction,
+)
 from app.core.config import Settings, get_settings
 from app.domain.entities import User
 from app.infrastructure.clock import get_clock
 from app.infrastructure.db.repositories import (
     SqlAlchemyCategoryRepository,
+    SqlAlchemyRecurringOccurrenceRepository,
     SqlAlchemyRefreshTokenRepository,
+    SqlAlchemyTransactionRepository,
     SqlAlchemyUserRepository,
 )
 from app.infrastructure.db.session import session_scope
@@ -66,7 +77,12 @@ AppSettings = Annotated[Settings, Depends(get_settings)]
 @lru_cache(maxsize=1)
 def get_password_hasher() -> PasswordHasher:
     """El hasher se cachea: construirlo calcula el hash descartable, que es caro."""
-    return Argon2Hasher()
+    settings = get_settings()
+    return Argon2Hasher(
+        time_cost=settings.argon2_time_cost,
+        memory_cost_kib=settings.argon2_memory_cost_kib,
+        parallelism=settings.argon2_parallelism,
+    )
 
 
 @lru_cache(maxsize=1)
@@ -98,8 +114,18 @@ def get_refresh_token_repository(session: DbSession) -> RefreshTokenRepository:
     return SqlAlchemyRefreshTokenRepository(session)
 
 
+def get_transaction_repository(session: DbSession) -> TransactionRepository:
+    return SqlAlchemyTransactionRepository(session)
+
+
+def get_occurrence_repository(session: DbSession) -> RecurringOccurrenceRepository:
+    return SqlAlchemyRecurringOccurrenceRepository(session)
+
+
 Users = Annotated[UserRepository, Depends(get_user_repository)]
 Categories = Annotated[CategoryRepository, Depends(get_category_repository)]
+Transactions = Annotated[TransactionRepository, Depends(get_transaction_repository)]
+Occurrences = Annotated[RecurringOccurrenceRepository, Depends(get_occurrence_repository)]
 RefreshTokens_ = Annotated[RefreshTokenRepository, Depends(get_refresh_token_repository)]
 Hasher = Annotated[PasswordHasher, Depends(get_password_hasher)]
 Tokens = Annotated[TokenService, Depends(get_token_service)]
@@ -145,6 +171,42 @@ def get_update_category(categories: Categories) -> UpdateCategory:
 
 def get_delete_category(categories: Categories) -> DeleteCategory:
     return DeleteCategory(categories)
+
+
+def get_list_transactions(transactions: Transactions) -> ListTransactions:
+    return ListTransactions(transactions)
+
+
+def get_get_transaction(transactions: Transactions) -> GetTransaction:
+    return GetTransaction(transactions)
+
+
+def get_create_transaction(
+    transactions: Transactions, categories: Categories, settings: AppSettings
+) -> CreateTransaction:
+    return CreateTransaction(
+        transactions=transactions,
+        categories=categories,
+        supported_currencies=settings.supported_currencies_set,
+        default_currency=settings.default_currency,
+    )
+
+
+def get_update_transaction(
+    transactions: Transactions, categories: Categories, settings: AppSettings
+) -> UpdateTransaction:
+    return UpdateTransaction(
+        transactions=transactions,
+        categories=categories,
+        supported_currencies=settings.supported_currencies_set,
+        default_currency=settings.default_currency,
+    )
+
+
+def get_delete_transaction(
+    transactions: Transactions, occurrences: Occurrences
+) -> DeleteTransaction:
+    return DeleteTransaction(transactions=transactions, occurrences=occurrences)
 
 
 # --- Usuario autenticado ---------------------------------------------------
