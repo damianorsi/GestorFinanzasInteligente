@@ -1,0 +1,16 @@
+# Normalización de fin de línea.
+* text=auto eol=lf
+
+# Los scripts que se ejecutan dentro de contenedores Linux DEBEN quedar con LF.
+# En Windows, un checkout con CRLF los rompe con "exec format error" / "not found".
+*.sh text eol=lf
+entrypoint.sh text eol=lf
+
+# Los .bat/.cmd de Windows van con CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binarios
+*.png binary
+*.jpg binary
+*.ico binary
