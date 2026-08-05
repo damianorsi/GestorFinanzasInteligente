@@ -195,7 +195,7 @@ Plan de 14 fases (detalle en `docs/PROMPT.md` §18).
 - [x] **Fase 7 — Presupuestos (backend)**: ABM, progreso con estados, copia entre meses
 - [x] **Fase 8 — Frontend base**: routing con guards, cliente HTTP con refresh, formateo es-AR, login y registro
 - [x] **Fase 9 — Frontend features**: dashboard con gráficos, movimientos con filtros, ABM de categorías, presupuestos y reportes
-- [ ] Fase 10 — Asistente LangChain
+- [x] **Fase 10 — Asistente LangChain**: agente con 7 tools de `user_id` cerrado, contexto temporal resuelto en el backend, cupo por hora y telemetría de tokens
 - [ ] Fase 11 — Frontend chat
 - [ ] Fase 12 — Recurrentes (backend)
 - [ ] Fase 13 — Frontend recurrentes
@@ -227,12 +227,30 @@ Si en algún momento se escala a varias réplicas, hace falta un lock distribuid
 eso, cada réplica dispararía su propio job. La UNIQUE evitaría los duplicados, pero
 generaría ruido de `IntegrityError` en los logs.
 
+### Asistente: guardrails
+
+Todo por variable de entorno; cambiar de modelo o de límite **no** requiere tocar código.
+
+| Límite | Variable | Default |
+|---|---|---|
+| Tokens máximos de respuesta | `OPENAI_MAX_TOKENS` | 500 |
+| Iteraciones máximas del agente | `AGENT_MAX_ITERATIONS` | 3 |
+| Mensajes de historial reenviados | `CHAT_HISTORY_WINDOW` | 6 |
+| Consultas por usuario por hora | `CHAT_RATE_LIMIT_PER_HOUR` | 20 |
+
+El tope de **iteraciones** es el crítico: sin él, un agente puede entrar en loop
+tool→modelo→tool y hacer decenas de llamadas en una sola consulta. Al agotarlo, o si
+OpenAI falla, la respuesta sale con `degraded: true` y un texto legible — **nunca un
+500**. La consulta igual consume cupo, así que un proveedor caído no habilita reintentos
+infinitos.
+
 ### Consumo de tokens del asistente
 
 Desde la fase 10, cada consulta al chat deja una fila en `chat_usage`. Para revisar el
 consumo real:
 
 ```sql
+-- Promedio por consulta y por día
 SELECT
     DATE(created_at)                     AS dia,
     COUNT(*)                             AS consultas,
@@ -245,6 +263,37 @@ FROM chat_usage
 GROUP BY DATE(created_at)
 ORDER BY dia DESC;
 ```
+
+```sql
+-- Promedio por consulta y por usuario, para detectar los casos extremos
+SELECT
+    u.email,
+    COUNT(*)                             AS consultas,
+    ROUND(AVG(c.total_tokens))           AS total_prom,
+    MAX(c.total_tokens)                  AS total_max,
+    ROUND(AVG(c.tool_calls_count), 2)    AS tools_prom,
+    SUM(c.total_tokens)                  AS total_acumulado
+FROM chat_usage c
+JOIN users u ON u.id = c.user_id
+GROUP BY u.id, u.email
+ORDER BY total_acumulado DESC;
+```
+
+```sql
+-- Distribución por consulta: la media esconde la cola cara
+SELECT
+    model,
+    COUNT(*)                             AS consultas,
+    MIN(total_tokens)                    AS minimo,
+    ROUND(AVG(total_tokens))             AS promedio,
+    MAX(total_tokens)                    AS maximo,
+    SUM(total_tokens = 0)                AS degradadas
+FROM chat_usage
+GROUP BY model;
+```
+
+`total_tokens = 0` marca las consultas que se respondieron con el fallback: si ese número
+crece, el problema es de disponibilidad, no de costo.
 
 **Revisar a la semana de uso real** y recalibrar `OPENAI_MODEL`, `OPENAI_MAX_TOKENS` y
 `CHAT_HISTORY_WINDOW` con esos datos en vez de con estimaciones.

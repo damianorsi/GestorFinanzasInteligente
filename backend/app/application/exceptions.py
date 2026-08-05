@@ -60,6 +60,18 @@ class InvalidReferenceError(ApplicationError):
     """
 
 
+class RateLimitExceededError(ApplicationError):
+    """Se superó el cupo de consultas al asistente."""
+
+
+class AssistantUnavailableError(ApplicationError):
+    """El proveedor del modelo falló o no respondió a tiempo.
+
+    Se distingue de un error interno porque no es un bug: es una dependencia
+    externa caída, y la respuesta correcta es un mensaje claro y no un 500.
+    """
+
+
 class ExportTooLargeError(ApplicationError):
     """La exportación pedida no entra en una sola respuesta.
 
@@ -78,6 +90,7 @@ class ResourceInUseError(ApplicationError):
 
 __all__ = [
     "ApplicationError",
+    "AssistantUnavailableError",
     "DuplicateResourceError",
     "EmailAlreadyRegisteredError",
     "ExportTooLargeError",
@@ -85,6 +98,7 @@ __all__ = [
     "InvalidCredentialsError",
     "InvalidReferenceError",
     "InvalidTokenError",
+    "RateLimitExceededError",
     "ResourceInUseError",
     "ResourceNotFoundError",
     "UnsupportedCurrencyError",

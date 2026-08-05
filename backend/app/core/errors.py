@@ -20,6 +20,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.application.exceptions import (
     ApplicationError,
+    AssistantUnavailableError,
     DuplicateResourceError,
     EmailAlreadyRegisteredError,
     ExportTooLargeError,
@@ -27,6 +28,7 @@ from app.application.exceptions import (
     InvalidCredentialsError,
     InvalidReferenceError,
     InvalidTokenError,
+    RateLimitExceededError,
     ResourceInUseError,
     ResourceNotFoundError,
     UnsupportedCurrencyError,
@@ -132,6 +134,11 @@ _MAPEO_APLICACION: dict[type[ApplicationError], tuple[int, str]] = {
     ),
     InvalidReferenceError: (status.HTTP_422_UNPROCESSABLE_CONTENT, "invalid_reference"),
     ExportTooLargeError: (status.HTTP_422_UNPROCESSABLE_CONTENT, "export_too_large"),
+    RateLimitExceededError: (status.HTTP_429_TOO_MANY_REQUESTS, "rate_limit_exceeded"),
+    AssistantUnavailableError: (
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "assistant_unavailable",
+    ),
 }
 
 

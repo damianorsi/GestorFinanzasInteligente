@@ -20,9 +20,12 @@ from app.application.exceptions import InvalidTokenError
 from app.application.ports import (
     BudgetRepository,
     CategoryRepository,
+    ChatAgent,
+    ChatRepository,
     Clock,
     PasswordHasher,
     RecurringOccurrenceRepository,
+    RecurringRuleRepository,
     RefreshTokenRepository,
     ReportRepository,
     TokenService,
@@ -48,6 +51,7 @@ from app.application.use_cases.categories import (
     ListCategories,
     UpdateCategory,
 )
+from app.application.use_cases.chat import AskAssistant, GetChatHistory
 from app.application.use_cases.reports import (
     GetCategoryBreakdown,
     GetMonthlyTrend,
@@ -63,11 +67,14 @@ from app.application.use_cases.transactions import (
 )
 from app.core.config import Settings, get_settings
 from app.domain.entities import User
+from app.infrastructure.assistant import DependenciasDelAsistente, LangChainAssistant
 from app.infrastructure.clock import get_clock
 from app.infrastructure.db.repositories import (
     SqlAlchemyBudgetRepository,
     SqlAlchemyCategoryRepository,
+    SqlAlchemyChatRepository,
     SqlAlchemyRecurringOccurrenceRepository,
+    SqlAlchemyRecurringRuleRepository,
     SqlAlchemyRefreshTokenRepository,
     SqlAlchemyReportRepository,
     SqlAlchemyTransactionRepository,
@@ -148,12 +155,22 @@ def get_budget_repository(session: DbSession) -> BudgetRepository:
     return SqlAlchemyBudgetRepository(session)
 
 
+def get_chat_repository(session: DbSession) -> ChatRepository:
+    return SqlAlchemyChatRepository(session)
+
+
+def get_recurring_rule_repository(session: DbSession) -> RecurringRuleRepository:
+    return SqlAlchemyRecurringRuleRepository(session)
+
+
 Users = Annotated[UserRepository, Depends(get_user_repository)]
 Categories = Annotated[CategoryRepository, Depends(get_category_repository)]
 Transactions = Annotated[TransactionRepository, Depends(get_transaction_repository)]
 Occurrences = Annotated[RecurringOccurrenceRepository, Depends(get_occurrence_repository)]
 Reports = Annotated[ReportRepository, Depends(get_report_repository)]
 Budgets = Annotated[BudgetRepository, Depends(get_budget_repository)]
+Chats = Annotated[ChatRepository, Depends(get_chat_repository)]
+Rules = Annotated[RecurringRuleRepository, Depends(get_recurring_rule_repository)]
 RefreshTokens_ = Annotated[RefreshTokenRepository, Depends(get_refresh_token_repository)]
 Hasher = Annotated[PasswordHasher, Depends(get_password_hasher)]
 Tokens = Annotated[TokenService, Depends(get_token_service)]
@@ -329,6 +346,59 @@ def get_monthly_trend(reports: Reports, clock: AppClock, settings: AppSettings) 
         supported_currencies=settings.supported_currencies_set,
         default_currency=settings.default_currency,
     )
+
+
+def get_assistant_agent(
+    reports: Reports,
+    budgets: Budgets,
+    categories: Categories,
+    transactions: Transactions,
+    rules: Rules,
+    clock: AppClock,
+    settings: AppSettings,
+) -> ChatAgent:
+    """Construye el agente con las dependencias de la request.
+
+    Las herramientas se arman después, dentro de `answer`, con el `user_id` ya
+    cerrado: acá solo se cablean los casos de uso que van a respaldarlas.
+    """
+    monedas = settings.supported_currencies_set
+    moneda = settings.default_currency
+    return LangChainAssistant(
+        deps=DependenciasDelAsistente(
+            resumen=GetPeriodSummary(reports, clock, monedas, moneda),
+            por_categoria=GetCategoryBreakdown(reports, clock, monedas, moneda),
+            tendencia=GetMonthlyTrend(reports, clock, monedas, moneda),
+            presupuestos=GetBudgetProgress(budgets, categories, reports, monedas, moneda),
+            movimientos=ListTransactions(transactions),
+            reglas=rules,
+            default_currency=moneda,
+        ),
+        api_key=settings.openai_api_key,
+        model=settings.openai_model,
+        max_tokens=settings.openai_max_tokens,
+        max_iterations=settings.agent_max_iterations,
+        timeout_seconds=settings.openai_timeout_seconds,
+    )
+
+
+def get_ask_assistant(
+    agent: Annotated[ChatAgent, Depends(get_assistant_agent)],
+    chat: Chats,
+    clock: AppClock,
+    settings: AppSettings,
+) -> AskAssistant:
+    return AskAssistant(
+        agent=agent,
+        chat=chat,
+        clock=clock,
+        history_window=settings.chat_history_window,
+        rate_limit_per_hour=settings.chat_rate_limit_per_hour,
+    )
+
+
+def get_chat_history(chat: Chats, settings: AppSettings) -> GetChatHistory:
+    return GetChatHistory(chat, settings.chat_history_window)
 
 
 # --- Usuario autenticado ---------------------------------------------------
