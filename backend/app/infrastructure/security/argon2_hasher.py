@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import suppress
 
+from argon2 import DEFAULT_MEMORY_COST, DEFAULT_PARALLELISM, DEFAULT_TIME_COST
 from argon2 import PasswordHasher as Argon2
 from argon2.exceptions import InvalidHashError, VerificationError
 
@@ -20,8 +21,17 @@ class Argon2Hasher:
     silencio a 72 bytes: una contraseña larga quedaría parcialmente ignorada.
     """
 
-    def __init__(self) -> None:
-        self._argon2 = Argon2()
+    def __init__(
+        self,
+        time_cost: int = DEFAULT_TIME_COST,
+        memory_cost_kib: int = DEFAULT_MEMORY_COST,
+        parallelism: int = DEFAULT_PARALLELISM,
+    ) -> None:
+        self._argon2 = Argon2(
+            time_cost=time_cost,
+            memory_cost=memory_cost_kib,
+            parallelism=parallelism,
+        )
         # Se calcula una vez al arrancar: es caro a propósito, y hacerlo en
         # cada login fallido duplicaría el trabajo sin ganar nada.
         self._hash_descartable = self._argon2.hash(_TEXTO_DESCARTABLE)

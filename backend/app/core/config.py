@@ -12,6 +12,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # aplicación se niega a arrancar con él en producción (ver _validar_produccion).
 INSECURE_DEFAULT_SECRET = "cambiame_por_una_clave_larga_y_aleatoria"
 
+# Pisos que se exigen en producción (recomendación de OWASP para Argon2id).
+ARGON2_TIME_COST_MINIMO = 2
+ARGON2_MEMORIA_MINIMA_KIB = 19456
+
 
 class Settings(BaseSettings):
     """Configuración tipada de toda la aplicación.
@@ -45,6 +49,13 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
+
+    # Parámetros de Argon2id. Los defaults son los de argon2-cffi, alineados con
+    # la recomendación de OWASP. Se exponen para poder bajarlos en la suite de
+    # tests, donde el costo deliberado del hashing solo agrega segundos.
+    argon2_time_cost: int = 3
+    argon2_memory_cost_kib: int = 65536
+    argon2_parallelism: int = 4
 
     # --- OpenAI / Asistente ------------------------------------------------
     openai_api_key: str = ""
@@ -110,6 +121,18 @@ class Settings(BaseSettings):
             raise ValueError("JWT_SECRET_KEY tiene el valor de ejemplo; generá uno real")
         if len(self.jwt_secret_key) < 32:
             raise ValueError("JWT_SECRET_KEY debe tener al menos 32 caracteres")
+        # Sin esto, arrastrar por descuido la configuración de tests a producción
+        # dejaría las contraseñas con un hashing barato de romper, y nada lo
+        # delataría en runtime.
+        if self.argon2_time_cost < ARGON2_TIME_COST_MINIMO:
+            raise ValueError(
+                f"ARGON2_TIME_COST debe ser al menos {ARGON2_TIME_COST_MINIMO} en producción"
+            )
+        if self.argon2_memory_cost_kib < ARGON2_MEMORIA_MINIMA_KIB:
+            raise ValueError(
+                f"ARGON2_MEMORY_COST_KIB debe ser al menos {ARGON2_MEMORIA_MINIMA_KIB} "
+                "en producción"
+            )
         return self
 
 
