@@ -180,7 +180,7 @@ Plan de 14 fases (detalle en `docs/PROMPT.md` §18).
 - [x] **Fase 1 — Scaffolding**: estructura, docker compose, `.env.example`, health check, CI
 - [x] **Fase 2 — Dominio y persistencia**: `Money`, `Clock`, entidades, modelos, mappers, migración inicial
 - [x] **Fase 3 — Autenticación**: registro, login, refresh con rotación, logout, `get_current_user`, seed de categorías
-- [ ] Fase 4 — Categorías
+- [x] **Fase 4 — Categorías**: ABM completo, unicidad por usuario y tipo, borrado bloqueado con detalle
 - [ ] Fase 5 — Transacciones
 - [ ] Fase 6 — Reportes y export CSV
 - [ ] Fase 7 — Presupuestos (backend)
