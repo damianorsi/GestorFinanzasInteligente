@@ -181,7 +181,7 @@ Plan de 14 fases (detalle en `docs/PROMPT.md` §18).
 - [x] **Fase 2 — Dominio y persistencia**: `Money`, `Clock`, entidades, modelos, mappers, migración inicial
 - [x] **Fase 3 — Autenticación**: registro, login, refresh con rotación, logout, `get_current_user`, seed de categorías
 - [x] **Fase 4 — Categorías**: ABM completo, unicidad por usuario y tipo, borrado bloqueado con detalle
-- [ ] Fase 5 — Transacciones
+- [x] **Fase 5 — Transacciones**: CRUD, filtros combinables, orden validado y paginación estable
 - [ ] Fase 6 — Reportes y export CSV
 - [ ] Fase 7 — Presupuestos (backend)
 - [ ] Fase 8 — Frontend base
