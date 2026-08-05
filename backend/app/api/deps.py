@@ -23,6 +23,7 @@ from app.application.ports import (
     PasswordHasher,
     RecurringOccurrenceRepository,
     RefreshTokenRepository,
+    ReportRepository,
     TokenService,
     TransactionRepository,
     UserRepository,
@@ -38,9 +39,15 @@ from app.application.use_cases.categories import (
     ListCategories,
     UpdateCategory,
 )
+from app.application.use_cases.reports import (
+    GetCategoryBreakdown,
+    GetMonthlyTrend,
+    GetPeriodSummary,
+)
 from app.application.use_cases.transactions import (
     CreateTransaction,
     DeleteTransaction,
+    ExportTransactions,
     GetTransaction,
     ListTransactions,
     UpdateTransaction,
@@ -52,6 +59,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyCategoryRepository,
     SqlAlchemyRecurringOccurrenceRepository,
     SqlAlchemyRefreshTokenRepository,
+    SqlAlchemyReportRepository,
     SqlAlchemyTransactionRepository,
     SqlAlchemyUserRepository,
 )
@@ -122,10 +130,15 @@ def get_occurrence_repository(session: DbSession) -> RecurringOccurrenceReposito
     return SqlAlchemyRecurringOccurrenceRepository(session)
 
 
+def get_report_repository(session: DbSession) -> ReportRepository:
+    return SqlAlchemyReportRepository(session)
+
+
 Users = Annotated[UserRepository, Depends(get_user_repository)]
 Categories = Annotated[CategoryRepository, Depends(get_category_repository)]
 Transactions = Annotated[TransactionRepository, Depends(get_transaction_repository)]
 Occurrences = Annotated[RecurringOccurrenceRepository, Depends(get_occurrence_repository)]
+Reports = Annotated[ReportRepository, Depends(get_report_repository)]
 RefreshTokens_ = Annotated[RefreshTokenRepository, Depends(get_refresh_token_repository)]
 Hasher = Annotated[PasswordHasher, Depends(get_password_hasher)]
 Tokens = Annotated[TokenService, Depends(get_token_service)]
@@ -207,6 +220,47 @@ def get_delete_transaction(
     transactions: Transactions, occurrences: Occurrences
 ) -> DeleteTransaction:
     return DeleteTransaction(transactions=transactions, occurrences=occurrences)
+
+
+def get_export_transactions(
+    transactions: Transactions, categories: Categories, settings: AppSettings
+) -> ExportTransactions:
+    return ExportTransactions(
+        transactions=transactions,
+        categories=categories,
+        max_rows=settings.export_max_rows,
+    )
+
+
+def get_period_summary(
+    reports: Reports, clock: AppClock, settings: AppSettings
+) -> GetPeriodSummary:
+    return GetPeriodSummary(
+        reports=reports,
+        clock=clock,
+        supported_currencies=settings.supported_currencies_set,
+        default_currency=settings.default_currency,
+    )
+
+
+def get_category_breakdown(
+    reports: Reports, clock: AppClock, settings: AppSettings
+) -> GetCategoryBreakdown:
+    return GetCategoryBreakdown(
+        reports=reports,
+        clock=clock,
+        supported_currencies=settings.supported_currencies_set,
+        default_currency=settings.default_currency,
+    )
+
+
+def get_monthly_trend(reports: Reports, clock: AppClock, settings: AppSettings) -> GetMonthlyTrend:
+    return GetMonthlyTrend(
+        reports=reports,
+        clock=clock,
+        supported_currencies=settings.supported_currencies_set,
+        default_currency=settings.default_currency,
+    )
 
 
 # --- Usuario autenticado ---------------------------------------------------

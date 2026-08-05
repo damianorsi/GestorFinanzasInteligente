@@ -22,6 +22,7 @@ from app.application.exceptions import (
     ApplicationError,
     DuplicateResourceError,
     EmailAlreadyRegisteredError,
+    ExportTooLargeError,
     InactiveUserError,
     InvalidCredentialsError,
     InvalidReferenceError,
@@ -130,6 +131,7 @@ _MAPEO_APLICACION: dict[type[ApplicationError], tuple[int, str]] = {
         "unsupported_currency",
     ),
     InvalidReferenceError: (status.HTTP_422_UNPROCESSABLE_CONTENT, "invalid_reference"),
+    ExportTooLargeError: (status.HTTP_422_UNPROCESSABLE_CONTENT, "export_too_large"),
 }
 
 

@@ -28,3 +28,14 @@ class TransactionRepository(Protocol):
     ) -> PaginatedResult[Transaction]:
         """Lista paginada de movimientos que cumplen el filtro."""
         ...
+
+    async def list_for_export(
+        self, user_id: int, filters: TransactionFilters, limit: int
+    ) -> list[Transaction]:
+        """Movimientos sin paginar, para el export.
+
+        `limit` no es opcional: acota cuánto se puede traer a memoria de una.
+        El caso de uso pide uno más del máximo para poder distinguir "justo el
+        máximo" de "se pasó" y avisar en vez de truncar en silencio.
+        """
+        ...

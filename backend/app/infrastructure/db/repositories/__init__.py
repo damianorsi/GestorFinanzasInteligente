@@ -7,6 +7,7 @@ from app.infrastructure.db.repositories.recurring_occurrence_repository import (
 from app.infrastructure.db.repositories.refresh_token_repository import (
     SqlAlchemyRefreshTokenRepository,
 )
+from app.infrastructure.db.repositories.report_repository import SqlAlchemyReportRepository
 from app.infrastructure.db.repositories.transaction_repository import (
     SqlAlchemyTransactionRepository,
 )
@@ -16,6 +17,7 @@ __all__ = [
     "SqlAlchemyCategoryRepository",
     "SqlAlchemyRecurringOccurrenceRepository",
     "SqlAlchemyRefreshTokenRepository",
+    "SqlAlchemyReportRepository",
     "SqlAlchemyTransactionRepository",
     "SqlAlchemyUserRepository",
 ]

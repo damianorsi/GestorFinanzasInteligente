@@ -91,6 +91,17 @@ class SqlAlchemyTransactionRepository:
             total_count=int(total or 0),
         )
 
+    async def list_for_export(
+        self, user_id: int, filters: TransactionFilters, limit: int
+    ) -> list[Transaction]:
+        consulta = (
+            self._filtrar(select(TransactionModel), user_id, filters)
+            .order_by(*self._ordenar(filters.sort))
+            .limit(limit)
+        )
+        modelos = (await self._session.scalars(consulta)).all()
+        return [movimiento_a_dominio(modelo) for modelo in modelos]
+
     def _filtrar(
         self, consulta: Select[Any], user_id: int, filters: TransactionFilters
     ) -> Select[Any]:

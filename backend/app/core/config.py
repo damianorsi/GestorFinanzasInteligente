@@ -66,6 +66,11 @@ class Settings(BaseSettings):
     chat_history_window: int = 6
     chat_rate_limit_per_hour: int = 20
 
+    # --- Exportación --------------------------------------------------------
+    # Tope de filas por export. Se avisa al superarlo en vez de truncar: un CSV
+    # recortado en silencio parece completo y es peor que un error.
+    export_max_rows: int = 50000
+
     # --- Movimientos recurrentes -------------------------------------------
     recurring_job_hour: int = 3
     recurring_catchup_max_days: int = 90

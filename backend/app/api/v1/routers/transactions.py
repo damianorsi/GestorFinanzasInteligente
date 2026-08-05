@@ -13,10 +13,12 @@ from app.api.deps import (
     CurrentUser,
     get_create_transaction,
     get_delete_transaction,
+    get_export_transactions,
     get_get_transaction,
     get_list_transactions,
     get_update_transaction,
 )
+from app.api.v1.exporters import FormatoCsv, construir_csv, nombre_de_archivo
 from app.api.v1.schemas.transactions import (
     PaginatedTransactions,
     TransactionCreateRequest,
@@ -28,6 +30,7 @@ from app.application.dtos import LIMITE_MAXIMO, LIMITE_POR_DEFECTO, Page, Transa
 from app.application.use_cases.transactions import (
     CreateTransaction,
     DeleteTransaction,
+    ExportTransactions,
     GetTransaction,
     ListTransactions,
     UpdateTransaction,
@@ -38,21 +41,8 @@ from app.domain.enums import TransactionType
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
 
-@router.get(
-    "",
-    response_model=PaginatedTransactions,
-    summary="Listar movimientos",
-    description=(
-        "Paginado y filtrable. `totalCount` cuenta los que cumplen el filtro, no los "
-        "devueltos en la página. Los resultados se acotan siempre a una moneda."
-    ),
-)
-async def listar(
-    usuario: CurrentUser,
-    caso: Annotated[ListTransactions, Depends(get_list_transactions)],
+def filtros_de_movimientos(
     settings: AppSettings,
-    offset: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(ge=1, le=LIMITE_MAXIMO)] = LIMITE_POR_DEFECTO,
     currency: Annotated[str | None, Query(min_length=3, max_length=3)] = None,
     date_from: Annotated[date | None, Query()] = None,
     date_to: Annotated[date | None, Query()] = None,
@@ -63,9 +53,16 @@ async def listar(
     q: Annotated[str | None, Query(max_length=255, description="Busca en la descripción.")] = None,
     is_recurring: Annotated[bool | None, Query()] = None,
     sort: Annotated[str | None, Query(description="Ej: `-occurred_on,amount`.")] = None,
-) -> PaginatedTransactions:
+) -> TransactionFilters:
+    """Arma los filtros a partir de la query string.
+
+    Es una dependencia compartida entre el listado y el export para garantizar
+    que el archivo exportado contenga exactamente lo que se ve en pantalla: si
+    cada endpoint declarara sus parámetros por separado, alcanzaría con agregar
+    un filtro en uno y olvidarlo en el otro.
+    """
     try:
-        filtros = TransactionFilters(
+        return TransactionFilters(
             currency=(currency or settings.default_currency).upper(),
             date_from=date_from,
             date_to=date_to,
@@ -82,12 +79,66 @@ async def listar(
         # no puede validar campo a campo.
         raise ValidationError(str(exc)) from exc
 
+
+Filtros = Annotated[TransactionFilters, Depends(filtros_de_movimientos)]
+
+
+@router.get(
+    "",
+    response_model=PaginatedTransactions,
+    summary="Listar movimientos",
+    description=(
+        "Paginado y filtrable. `totalCount` cuenta los que cumplen el filtro, no los "
+        "devueltos en la página. Los resultados se acotan siempre a una moneda."
+    ),
+)
+async def listar(
+    usuario: CurrentUser,
+    caso: Annotated[ListTransactions, Depends(get_list_transactions)],
+    filtros: Filtros,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=LIMITE_MAXIMO)] = LIMITE_POR_DEFECTO,
+) -> PaginatedTransactions:
     resultado = await caso.execute(usuario.id or 0, filtros, Page(offset=offset, limit=limit))
     return PaginatedTransactions(
         entries=[TransactionResponse.desde(m) for m in resultado.entries],
         offset=resultado.offset,
         limit=resultado.limit,
         totalCount=resultado.total_count,
+    )
+
+
+@router.get(
+    "/export",
+    response_class=Response,
+    summary="Exportar movimientos a CSV",
+    description=(
+        "Respeta exactamente los mismos filtros que el listado. UTF-8 con BOM para que "
+        "Excel reconozca los acentos. No incluye proyecciones futuras porque los "
+        "movimientos de reglas recurrentes solo se materializan hasta hoy."
+    ),
+    responses={200: {"content": {"text/csv": {}}}},
+)
+async def exportar(
+    usuario: CurrentUser,
+    caso: Annotated[ExportTransactions, Depends(get_export_transactions)],
+    filtros: Filtros,
+    format: Annotated[
+        FormatoCsv,
+        Query(
+            description=(
+                "`standard`: coma como separador y punto decimal. "
+                "`excel_es`: punto y coma y coma decimal, que es lo que espera Excel "
+                "en español al abrir el archivo con doble clic."
+            )
+        ),
+    ] = FormatoCsv.ESTANDAR,
+) -> Response:
+    filas = await caso.execute(usuario.id or 0, filtros)
+    return Response(
+        content=construir_csv(filas, format),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{nombre_de_archivo()}"'},
     )
 
 

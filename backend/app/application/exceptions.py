@@ -60,6 +60,14 @@ class InvalidReferenceError(ApplicationError):
     """
 
 
+class ExportTooLargeError(ApplicationError):
+    """La exportación pedida no entra en una sola respuesta.
+
+    Se avisa en vez de truncar: un CSV recortado en silencio es peor que un
+    error, porque parece completo.
+    """
+
+
 class ResourceInUseError(ApplicationError):
     """El recurso no se puede borrar porque otros dependen de él.
 
@@ -72,6 +80,7 @@ __all__ = [
     "ApplicationError",
     "DuplicateResourceError",
     "EmailAlreadyRegisteredError",
+    "ExportTooLargeError",
     "InactiveUserError",
     "InvalidCredentialsError",
     "InvalidReferenceError",
