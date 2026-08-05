@@ -21,7 +21,7 @@ from app.application.dtos import (
     TransactionFilters,
     UserCredentials,
 )
-from app.domain.entities import Category, Transaction, User
+from app.domain.entities import Budget, Category, Transaction, User
 from app.domain.enums import TransactionType
 from app.domain.value_objects import Money
 
@@ -216,6 +216,68 @@ class FakeTransactionRepository:
         ventana = propios[page.offset : page.offset + page.limit]
         return PaginatedResult(
             entries=ventana, offset=page.offset, limit=page.limit, total_count=len(propios)
+        )
+
+
+class FakeBudgetRepository:
+    def __init__(self) -> None:
+        self.presupuestos: dict[int, Budget] = {}
+        self._siguiente_id = 1
+
+    async def create(self, budget: Budget) -> Budget:
+        budget.id = self._siguiente_id
+        self._siguiente_id += 1
+        self.presupuestos[budget.id] = budget
+        return budget
+
+    async def create_many(self, budgets: Sequence[Budget]) -> int:
+        for presupuesto in budgets:
+            await self.create(presupuesto)
+        return len(budgets)
+
+    async def update(self, budget: Budget) -> Budget:
+        if budget.id is None or budget.id not in self.presupuestos:
+            raise ValueError("El presupuesto no existe.")
+        self.presupuestos[budget.id] = budget
+        return budget
+
+    async def delete(self, user_id: int, budget_id: int) -> None:
+        presupuesto = self.presupuestos.get(budget_id)
+        if presupuesto is not None and presupuesto.user_id == user_id:
+            del self.presupuestos[budget_id]
+
+    async def get_for_user(self, user_id: int, budget_id: int) -> Budget | None:
+        presupuesto = self.presupuestos.get(budget_id)
+        if presupuesto is None or presupuesto.user_id != user_id:
+            return None
+        return presupuesto
+
+    async def list_for_period(
+        self, user_id: int, period_month: date, currency: str
+    ) -> list[Budget]:
+        return [
+            presupuesto
+            for presupuesto in self.presupuestos.values()
+            if presupuesto.user_id == user_id
+            and presupuesto.period_month == period_month
+            and presupuesto.limit.currency == currency
+        ]
+
+    async def exists_for(
+        self,
+        user_id: int,
+        category_id: int,
+        period_month: date,
+        currency: str,
+        exclude_id: int | None = None,
+    ) -> bool:
+        return any(
+            presupuesto.user_id == user_id
+            and presupuesto.category_id == category_id
+            and presupuesto.period_month == period_month
+            and presupuesto.limit.currency == currency
+            and presupuesto.id != exclude_id
+            for presupuesto in self.presupuestos.values()
         )
 
 

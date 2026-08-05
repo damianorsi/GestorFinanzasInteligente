@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.dtos import TokenType
 from app.application.exceptions import InvalidTokenError
 from app.application.ports import (
+    BudgetRepository,
     CategoryRepository,
     Clock,
     PasswordHasher,
@@ -32,6 +33,14 @@ from app.application.use_cases.auth.login_user import LoginUser
 from app.application.use_cases.auth.logout_user import LogoutUser
 from app.application.use_cases.auth.refresh_tokens import RefreshTokens
 from app.application.use_cases.auth.register_user import RegisterUser
+from app.application.use_cases.budgets import (
+    CopyBudgets,
+    CreateBudget,
+    DeleteBudget,
+    GetBudgetProgress,
+    ListBudgets,
+    UpdateBudget,
+)
 from app.application.use_cases.categories import (
     CreateCategory,
     DeleteCategory,
@@ -56,6 +65,7 @@ from app.core.config import Settings, get_settings
 from app.domain.entities import User
 from app.infrastructure.clock import get_clock
 from app.infrastructure.db.repositories import (
+    SqlAlchemyBudgetRepository,
     SqlAlchemyCategoryRepository,
     SqlAlchemyRecurringOccurrenceRepository,
     SqlAlchemyRefreshTokenRepository,
@@ -134,11 +144,16 @@ def get_report_repository(session: DbSession) -> ReportRepository:
     return SqlAlchemyReportRepository(session)
 
 
+def get_budget_repository(session: DbSession) -> BudgetRepository:
+    return SqlAlchemyBudgetRepository(session)
+
+
 Users = Annotated[UserRepository, Depends(get_user_repository)]
 Categories = Annotated[CategoryRepository, Depends(get_category_repository)]
 Transactions = Annotated[TransactionRepository, Depends(get_transaction_repository)]
 Occurrences = Annotated[RecurringOccurrenceRepository, Depends(get_occurrence_repository)]
 Reports = Annotated[ReportRepository, Depends(get_report_repository)]
+Budgets = Annotated[BudgetRepository, Depends(get_budget_repository)]
 RefreshTokens_ = Annotated[RefreshTokenRepository, Depends(get_refresh_token_repository)]
 Hasher = Annotated[PasswordHasher, Depends(get_password_hasher)]
 Tokens = Annotated[TokenService, Depends(get_token_service)]
@@ -249,6 +264,59 @@ def get_category_breakdown(
     return GetCategoryBreakdown(
         reports=reports,
         clock=clock,
+        supported_currencies=settings.supported_currencies_set,
+        default_currency=settings.default_currency,
+    )
+
+
+def _presupuestos(
+    budgets: Budgets, categories: Categories, settings: AppSettings
+) -> tuple[BudgetRepository, CategoryRepository, frozenset[str], str]:
+    return (
+        budgets,
+        categories,
+        settings.supported_currencies_set,
+        settings.default_currency,
+    )
+
+
+def get_list_budgets(
+    budgets: Budgets, categories: Categories, settings: AppSettings
+) -> ListBudgets:
+    return ListBudgets(*_presupuestos(budgets, categories, settings))
+
+
+def get_create_budget(
+    budgets: Budgets, categories: Categories, settings: AppSettings
+) -> CreateBudget:
+    return CreateBudget(*_presupuestos(budgets, categories, settings))
+
+
+def get_update_budget(
+    budgets: Budgets, categories: Categories, settings: AppSettings
+) -> UpdateBudget:
+    return UpdateBudget(*_presupuestos(budgets, categories, settings))
+
+
+def get_delete_budget(
+    budgets: Budgets, categories: Categories, settings: AppSettings
+) -> DeleteBudget:
+    return DeleteBudget(*_presupuestos(budgets, categories, settings))
+
+
+def get_copy_budgets(
+    budgets: Budgets, categories: Categories, settings: AppSettings
+) -> CopyBudgets:
+    return CopyBudgets(*_presupuestos(budgets, categories, settings))
+
+
+def get_budget_progress(
+    budgets: Budgets, categories: Categories, reports: Reports, settings: AppSettings
+) -> GetBudgetProgress:
+    return GetBudgetProgress(
+        budgets=budgets,
+        categories=categories,
+        reports=reports,
         supported_currencies=settings.supported_currencies_set,
         default_currency=settings.default_currency,
     )

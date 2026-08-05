@@ -295,6 +295,12 @@ Los vencimientos futuros se exponen **únicamente** por `GET /recurring-rules/up
 - El gasto se calcula sobre movimientos **reales** del mes (`type = EXPENSE`, misma moneda), incluidos los generados por reglas recurrentes. **Las proyecciones futuras no cuentan.**
 - Categorías sin presupuesto definido aparecen aparte, con lo gastado, para que el usuario vea qué le falta presupuestar.
 - `POST /budgets/copy-from` con `{ from_period, to_period, currency }` copia los presupuestos de un mes a otro; las categorías que ya tengan presupuesto en el destino se saltean (no se pisan) y se informan en la respuesta.
+- **El estado se decide comparando montos, no el porcentaje redondeado.** Con un tope de $250 y $250,01 gastados, el porcentaje que se muestra es "100.00" pero el estado es `EXCEEDED`. Decidir sobre el número redondeado diría que todavía no se pasó. Se prefiere que el estado sea correcto aunque no coincida con lo que sugiere el redondeo visible.
+- Los umbrales son **inclusivos abajo y exclusivos arriba**: 80,00% ya es `WARNING`, y 100,00% exacto **todavía no** es `EXCEEDED` (se excede al pasarlo).
+- `remaining` es **negativo** cuando se excedió, no cero: decir "0 restante" ocultaría cuánto se pasó.
+- **El período viaja como `AAAA-MM`**, no como fecha completa: un presupuesto es de un mes entero y aceptar `2026-08-15` invitaría a creer que existen presupuestos que arrancan a mitad de mes.
+- El `PATCH` edita **solo el tope**. Categoría, período y moneda son lo que identifica al presupuesto: cambiarlos no sería editarlo sino crear otro, y podría chocar con uno existente.
+- El gasto sale de **la misma agregación que usan los reportes**, no de una consulta propia. Si fueran dos, el número del presupuesto y el del reporte podrían discrepar y no habría forma de saber cuál está mal.
 - En el front: barras de progreso con el color del `status`, y en el dashboard un resumen de categorías excedidas.
 
 ## 11. Asistente conversacional (LangChain + OpenAI)

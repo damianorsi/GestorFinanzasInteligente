@@ -8,6 +8,13 @@ from app.application.dtos.auth import (
     TokenType,
     UserCredentials,
 )
+from app.application.dtos.budgets import (
+    BudgetCopyResult,
+    BudgetProgress,
+    BudgetProgressReport,
+    SkippedBudget,
+    UnbudgetedSpending,
+)
 from app.application.dtos.categories import CategoryUsage
 from app.application.dtos.pagination import (
     LIMITE_MAXIMO,
@@ -35,6 +42,9 @@ __all__ = [
     "LIMITE_MAXIMO",
     "LIMITE_POR_DEFECTO",
     "ORDEN_POR_DEFECTO",
+    "BudgetCopyResult",
+    "BudgetProgress",
+    "BudgetProgressReport",
     "CategoryBreakdown",
     "CategoryTotal",
     "CategoryUsage",
@@ -44,6 +54,7 @@ __all__ = [
     "Page",
     "PaginatedResult",
     "PeriodSummary",
+    "SkippedBudget",
     "SortCriterion",
     "SortDirection",
     "SortField",
@@ -53,5 +64,6 @@ __all__ = [
     "TokenType",
     "TransactionExportRow",
     "TransactionFilters",
+    "UnbudgetedSpending",
     "UserCredentials",
 ]

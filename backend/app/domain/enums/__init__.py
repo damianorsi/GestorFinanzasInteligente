@@ -39,6 +39,14 @@ class OccurrenceStatus(StrEnum):
     SKIPPED = "SKIPPED"
 
 
+class BudgetStatus(StrEnum):
+    """Cómo viene un presupuesto respecto de su tope."""
+
+    OK = "OK"
+    WARNING = "WARNING"
+    EXCEEDED = "EXCEEDED"
+
+
 class ChatRole(StrEnum):
     """Quién emitió un mensaje de la conversación con el asistente."""
 
@@ -46,4 +54,10 @@ class ChatRole(StrEnum):
     ASSISTANT = "ASSISTANT"
 
 
-__all__ = ["ChatRole", "OccurrenceStatus", "RecurrenceFrequency", "TransactionType"]
+__all__ = [
+    "BudgetStatus",
+    "ChatRole",
+    "OccurrenceStatus",
+    "RecurrenceFrequency",
+    "TransactionType",
+]
