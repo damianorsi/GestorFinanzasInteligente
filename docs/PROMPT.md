@@ -194,9 +194,10 @@ POST   /auth/refresh             200
 POST   /auth/logout              204 (revoca refresh token)
 GET    /users/me                 200
 
-GET    /categories               200 (filtros: type)
+GET    /categories               200 lista plana, SIN paginar (filtro: type)
+GET    /categories/{id}          200 | 404
 POST   /categories               201 + header Location
-PATCH  /categories/{id}          200
+PATCH  /categories/{id}          200 (solo name y color: el tipo es inmutable)
 DELETE /categories/{id}          204 | 409 si tiene movimientos, presupuestos o reglas
 
 GET    /transactions             200 (paginado + filtros)
@@ -231,7 +232,10 @@ GET    /chat/history             200
 
 - **Todos los endpoints de lectura con montos aceptan `currency` (opcional, default `ARS`) y devuelven el campo `currency` en la respuesta.**
 - Filtros de `/transactions`: `date_from`, `date_to`, `category_id`, `type`, `currency`, `min_amount`, `max_amount`, `q` (busca en descripción), `is_recurring` (bool), `sort` (ej. `-occurred_on,amount`).
-- **Paginación offset-based**: request `offset` (default 0) + `limit` (default 20, máx 100); response `{ entries: [], offset, limit, totalCount }`.
+- **Paginación offset-based**: request `offset` (default 0) + `limit` (default 20, máx 100); response `{ entries: [], offset, limit, totalCount }`. Aplica a `/transactions`, que es la única colección que crece sin techo.
+- **`/categories` es la excepción y devuelve un array plano.** La colección está acotada por usuario (arranca en 10 y realistamente no pasa de unas decenas) y el frontend la necesita entera para poblar los selectores de alta de movimiento. Paginarla obligaría a iterar para armar un `<select>`, o —peor— a truncarlo en silencio.
+- **El `type` de una categoría es inmutable.** Pasar una de gasto a ingreso convertiría todos sus movimientos históricos en lo contrario de lo que se registró, y ni el balance ni los reportes tendrían forma de detectarlo. Para cambiar de tipo hay que crear otra categoría y mover los movimientos.
+- Los schemas de request llevan `extra="forbid"`: un campo desconocido devuelve 422 en vez de ignorarse. Sin eso, mandar `type` en un PATCH de categoría parecería funcionar y no cambiaría nada.
 - Fechas en ISO `YYYY-MM-DD`; montos como string con punto decimal. **Nunca formato localizado en el JSON.**
 - Códigos de estado: 200, 201 (+ `Location`), 204, 400, 401, 403, 404, 409, **422 para validaciones**, 429 (rate limit).
 - Formato de error uniforme: `{ "code": "snake_case_en_ingles", "message": "texto en español", "details": [...] }` vía exception handlers globales. Nunca stacktraces.

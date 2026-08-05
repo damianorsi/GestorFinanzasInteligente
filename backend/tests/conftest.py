@@ -35,6 +35,13 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-dummy-test")
 os.environ.setdefault("APP_TIMEZONE", "America/Argentina/Buenos_Aires")
 os.environ.setdefault("DEFAULT_CURRENCY", "ARS")
 os.environ.setdefault("SUPPORTED_CURRENCIES", "ARS")
+# Argon2 con el costo mínimo: en producción es caro a propósito, pero en la
+# suite solo agrega segundos sin probar nada que no cubra test_password_hasher.
+# La configuración de producción exige pisos mayores y falla al arrancar si se
+# le cuelan estos valores (ver `Settings._validar_produccion`).
+os.environ.setdefault("ARGON2_TIME_COST", "1")
+os.environ.setdefault("ARGON2_MEMORY_COST_KIB", "8")
+os.environ.setdefault("ARGON2_PARALLELISM", "1")
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL") or _derivar_url_de_test(
     os.environ.get("DATABASE_URL", _URL_POR_DEFECTO)
 )
@@ -54,14 +61,14 @@ from app.infrastructure.db.session import (  # noqa: E402
 )
 
 
-@pytest.fixture(autouse=True)
-async def _cerrar_pool_entre_tests() -> AsyncIterator[None]:
-    """Cierra el pool de conexiones al terminar cada test.
+@pytest.fixture(scope="session", autouse=True)
+async def _cerrar_pool_al_final() -> AsyncIterator[None]:
+    """Cierra el pool de conexiones al terminar la sesión de tests.
 
-    `get_engine` cachea el engine para todo el proceso, pero pytest-asyncio
-    crea un event loop nuevo por test. Sin esto, el segundo test que toca la
-    base toma una conexión del pool creada en un loop ya cerrado y falla con
-    "attached to a different loop".
+    Alcanza con hacerlo una vez porque toda la suite comparte un único event
+    loop (ver `asyncio_default_test_loop_scope` en pyproject.toml). Si el loop
+    fuera por test, el engine cacheado en `get_engine` entregaría conexiones
+    creadas en un loop ya cerrado.
     """
     yield
     await dispose_engine()
@@ -89,11 +96,12 @@ async def db_session(esquema: None) -> AsyncIterator[AsyncSession]:
     """Sesión contra la base de test, con las tablas vacías."""
     engine = get_engine()
     async with engine.begin() as conn:
-        # Se desactivan las FK para poder truncar en cualquier orden; TRUNCATE
-        # no las respeta ni siquiera cuando no hay filas referenciadas.
+        # DELETE y no TRUNCATE: con tablas casi vacías el DELETE es mucho más
+        # barato, porque TRUNCATE en InnoDB descarta y recrea el tablespace.
+        # Se desactivan las FK para poder borrar en cualquier orden.
         await conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
         for tabla in Base.metadata.sorted_tables:
-            await conn.execute(text(f"TRUNCATE TABLE `{tabla.name}`"))
+            await conn.execute(text(f"DELETE FROM `{tabla.name}`"))
         await conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
 
     async with get_session_factory()() as session:

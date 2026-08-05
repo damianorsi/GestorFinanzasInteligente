@@ -38,3 +38,14 @@ class SystemClock:
 @lru_cache(maxsize=1)
 def get_clock() -> SystemClock:
     return SystemClock(get_settings().timezone)
+
+
+def a_utc_naive(momento: datetime) -> datetime:
+    """Pasa un instante con zona a UTC sin zona.
+
+    Es la forma en que se guardan los `DATETIME` de auditoría: MySQL no
+    almacena la zona, así que la convención es que todo lo persistido está en
+    UTC. Convertir acá y no en cada repositorio evita que alguno guarde hora
+    local por descuido y quede desfasado tres horas.
+    """
+    return momento.astimezone(UTC).replace(tzinfo=None)
