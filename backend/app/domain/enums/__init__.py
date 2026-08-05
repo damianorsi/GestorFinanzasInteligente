@@ -1,0 +1,1 @@
+"""Enumeraciones del dominio."""
