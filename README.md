@@ -155,6 +155,15 @@ Consecuencias operativas de esas decisiones:
 
 - Aislamiento multiusuario: toda consulta filtra por el `user_id` del token. Pedir un
   recurso ajeno devuelve **404**, no 403, para no filtrar su existencia.
+- Contraseñas con **Argon2id** (no bcrypt, que trunca en silencio a 72 bytes).
+- El login **no distingue** "email inexistente" de "contraseña incorrecta", ni en el
+  mensaje ni en el tiempo de respuesta: cuando el email no existe igual se verifica
+  contra un hash descartable, para que la diferencia de latencia no permita enumerar
+  cuentas.
+- Los **refresh tokens rotan**: el usado se revoca al canjearlo, así que reutilizarlo
+  falla y es señal de que se filtró. En la base se guarda el SHA-256, nunca el token.
+- Un refresh token **no sirve** para autenticar requests, y un access token no sirve
+  para renovar: el tipo va en el claim `typ` y se verifica en los dos sentidos.
 - El asistente usa **tools con `user_id` cerrado**, no SQL libre: una prompt injection
   no puede leer datos de otro usuario porque el `user_id` no es un parámetro que el
   modelo pueda elegir.
@@ -170,7 +179,7 @@ Plan de 14 fases (detalle en `docs/PROMPT.md` §18).
 
 - [x] **Fase 1 — Scaffolding**: estructura, docker compose, `.env.example`, health check, CI
 - [x] **Fase 2 — Dominio y persistencia**: `Money`, `Clock`, entidades, modelos, mappers, migración inicial
-- [ ] Fase 3 — Autenticación
+- [x] **Fase 3 — Autenticación**: registro, login, refresh con rotación, logout, `get_current_user`, seed de categorías
 - [ ] Fase 4 — Categorías
 - [ ] Fase 5 — Transacciones
 - [ ] Fase 6 — Reportes y export CSV
