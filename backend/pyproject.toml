@@ -11,8 +11,16 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
-    "pydantic>=2.9",
+    # El extra `email` trae email-validator, que es lo que respalda a EmailStr.
+    "pydantic[email]>=2.9",
     "pydantic-settings>=2.6",
+    # Argon2id en vez de passlib+bcrypt: passlib no se mantiene desde 2020 y se
+    # lleva mal con bcrypt 4.x, y bcrypt trunca las contraseñas a 72 bytes.
+    # Argon2id es además la recomendación actual de OWASP.
+    "argon2-cffi>=23.1",
+    # PyJWT y no python-jose: este último tiene mantenimiento irregular y
+    # arrastra CVEs; PyJWT hace lo mismo con menos superficie.
+    "pyjwt>=2.10",
     "sqlalchemy[asyncio]>=2.0.36",
     "aiomysql>=0.2.0",
     # PyMySQL (vía aiomysql) necesita cryptography para autenticarse contra
@@ -90,7 +98,12 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
+# Un único event loop para toda la sesión. Con un loop por test, el pool de
+# conexiones cacheado en `get_engine` queda atado a un loop muerto y hay que
+# cerrarlo entre casos, lo que rehace el handshake con MySQL en cada test y
+# multiplica por diez el tiempo de la suite.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 addopts = "-q --strict-markers"
 markers = [
     "integration: requiere base de datos real",
