@@ -43,6 +43,23 @@ ORDEN_POR_DEFECTO: tuple[SortCriterion, ...] = (
 
 
 @dataclass(frozen=True, slots=True)
+class TransactionExportRow:
+    """Una fila del export, con la categoría ya resuelta a su nombre.
+
+    El CSV lo lee una persona, no la API: por eso lleva el nombre y no el id.
+    """
+
+    id: int
+    occurred_on: date
+    type: TransactionType
+    category_name: str
+    description: str
+    amount: Decimal
+    currency: str
+    is_recurring: bool
+
+
+@dataclass(frozen=True, slots=True)
 class TransactionFilters:
     """Filtros del listado de movimientos.
 

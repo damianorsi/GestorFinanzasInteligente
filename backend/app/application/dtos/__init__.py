@@ -15,11 +15,19 @@ from app.application.dtos.pagination import (
     Page,
     PaginatedResult,
 )
+from app.application.dtos.reports import (
+    CategoryBreakdown,
+    CategoryTotal,
+    MonthlyTotal,
+    MonthlyTrend,
+    PeriodSummary,
+)
 from app.application.dtos.transactions import (
     ORDEN_POR_DEFECTO,
     SortCriterion,
     SortDirection,
     SortField,
+    TransactionExportRow,
     TransactionFilters,
 )
 
@@ -27,10 +35,15 @@ __all__ = [
     "LIMITE_MAXIMO",
     "LIMITE_POR_DEFECTO",
     "ORDEN_POR_DEFECTO",
+    "CategoryBreakdown",
+    "CategoryTotal",
     "CategoryUsage",
     "IssuedToken",
+    "MonthlyTotal",
+    "MonthlyTrend",
     "Page",
     "PaginatedResult",
+    "PeriodSummary",
     "SortCriterion",
     "SortDirection",
     "SortField",
@@ -38,6 +51,7 @@ __all__ = [
     "TokenClaims",
     "TokenPair",
     "TokenType",
+    "TransactionExportRow",
     "TransactionFilters",
     "UserCredentials",
 ]
