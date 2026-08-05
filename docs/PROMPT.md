@@ -101,8 +101,9 @@ class Money:
 
 Reglas del VO, con tests propios:
 - Inmutable.
-- Rechaza montos negativos y más de 2 decimales.
-- **Sumar, restar o comparar dos `Money` de distinta moneda lanza `CurrencyMismatchError`.** Nunca hace conversión implícita. Esta guarda es la que garantiza que el día que entre USD, cualquier mezcla accidental explote en un test en vez de producir un balance silenciosamente incorrecto.
+- Rechaza más de 2 decimales, valores no finitos y **la construcción desde `float`**.
+- **Admite valores negativos.** La regla "los montos son siempre positivos" es una invariante de las *entidades* `Transaction`, `Budget` y `RecurringRule` —donde el signo lo determina el `TransactionType`—, no del tipo en sí: un balance es una resta y puede dar negativo. Ponerle esa restricción al value object obligaría a devolver los balances como `Decimal` pelado, que es exactamente lo que este tipo viene a evitar.
+- **Sumar, restar o comparar dos `Money` de distinta moneda lanza `CurrencyMismatchError`.** Nunca hace conversión implícita. Esta guarda es la que garantiza que el día que entre USD, cualquier mezcla accidental explote en un test en vez de producir un balance silenciosamente incorrecto. La *igualdad* entre monedas distintas devuelve `False` en vez de lanzar: preguntar si dos montos son iguales es legítimo, ordenarlos no.
 
 **c) La moneda es una dimensión de filtrado, no un cambio de forma en la respuesta**
 
@@ -395,7 +396,8 @@ Casos que sí o sí hay que cubrir:
 - CSV con caracteres especiales, comas y comillas en la descripción.
 
 **Moneda**
-- `Money` rechaza negativos y más de 2 decimales.
+- `Money` rechaza más de 2 decimales, no finitos y la construcción desde `float`.
+- `Money` admite negativos (un balance puede serlo); son las entidades las que exigen montos positivos.
 - **Sumar o comparar `Money` de distinta moneda lanza `CurrencyMismatchError`.**
 - `?currency=USD` → 422 `unsupported_currency` mientras `SUPPORTED_CURRENCIES=ARS`.
 - Toda respuesta con montos incluye el campo `currency`.
@@ -478,7 +480,8 @@ Ejecutá en este orden, con commit y tests verdes al cierre de cada fase.
 **El orden no es arbitrario**: el asistente (fase 10) va **antes** que los recurrentes (fase 12) porque es el diferencial del producto. Los recurrentes son la feature más costosa y la menos visible: si el proyecto se aprieta, es lo único que se recorta, y todo lo demás ya quedó entregado y funcionando.
 
 1. **Scaffolding**: estructura de carpetas, `docker-compose`, `.env.example`, health check, CI mínima corriendo.
-2. **Dominio y persistencia**: **`Money` VO y puerto `Clock` primero**, entidades, modelos SQLAlchemy con `currency`, migraciones Alembic, repositorios + tests unitarios.
+2. **Dominio y persistencia**: **`Money` VO y puerto `Clock` primero**, entidades con sus invariantes, modelos SQLAlchemy con `currency`, mappers dominio↔ORM, migración inicial de Alembic + tests unitarios y de constraints.
+   *Los repositorios concretos NO van acá*: sus firmas las determinan los casos de uso que los consumen (filtros, paginación, agregaciones), así que cada uno se implementa en la fase de su feature. Escribirlos antes sería adivinar la interfaz.
 3. **Autenticación**: registro, login, refresh, `get_current_user`, seed de categorías + tests de aislamiento.
 4. **Categorías**: ABM completo + tests.
 5. **Transacciones**: CRUD, filtros, paginación + tests.

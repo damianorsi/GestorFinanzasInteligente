@@ -64,6 +64,12 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]
 
+[tool.ruff.lint.isort]
+# Sin esto, el directorio `alembic/` del proyecto hace que isort clasifique el
+# paquete `alembic` como código propio y lo ordene junto a `app`.
+known-third-party = ["alembic"]
+known-first-party = ["app"]
+
 # ---------------------------------------------------------------------------
 # Mypy
 # ---------------------------------------------------------------------------
