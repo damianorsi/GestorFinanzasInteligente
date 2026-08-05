@@ -167,6 +167,15 @@ Consecuencias operativas de esas decisiones:
 - El asistente usa **tools con `user_id` cerrado**, no SQL libre: una prompt injection
   no puede leer datos de otro usuario porque el `user_id` no es un parámetro que el
   modelo pueda elegir.
+- **Almacenamiento de la sesión en el navegador**: el *access token* vive **solo en
+  memoria** y el *refresh token* en `localStorage`. Lo ideal sería una cookie
+  `httpOnly`, pero el backend devuelve los tokens en el cuerpo de la respuesta y
+  cambiar eso implicaría además resolver CSRF.
+  **El trade-off que queda**: un XSS puede leer el refresh token de `localStorage`.
+  Se mitiga en parte porque el refresh **rota** —usarlo lo revoca, así que el robo se
+  vuelve detectable y la ventana se acota— y porque el access token, que es el que
+  abre todos los endpoints, nunca se persiste: cerrar la pestaña lo borra. Migrar a
+  cookies `httpOnly` queda como mejora pendiente.
 - La API key de OpenAI vive solo en el backend, por variable de entorno.
 - Nunca se loguean tokens, contraseñas, prompts del usuario ni montos junto a un email.
 - `.env` está en `.gitignore`. En el repo solo hay `.env.example` con valores dummy.
@@ -184,7 +193,7 @@ Plan de 14 fases (detalle en `docs/PROMPT.md` §18).
 - [x] **Fase 5 — Transacciones**: CRUD, filtros combinables, orden validado y paginación estable
 - [x] **Fase 6 — Reportes y export CSV**: resumen, agregado por categoría, tendencia mensual sin agujeros y export con formato para Excel
 - [x] **Fase 7 — Presupuestos (backend)**: ABM, progreso con estados, copia entre meses
-- [ ] Fase 8 — Frontend base
+- [x] **Fase 8 — Frontend base**: routing con guards, cliente HTTP con refresh, formateo es-AR, login y registro
 - [ ] Fase 9 — Frontend features
 - [ ] Fase 10 — Asistente LangChain
 - [ ] Fase 11 — Frontend chat
