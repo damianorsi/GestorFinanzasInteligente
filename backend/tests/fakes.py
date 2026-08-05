@@ -11,15 +11,19 @@ from collections.abc import Sequence
 from datetime import date, datetime, timedelta
 
 from app.application.dtos import (
+    CategoryTotal,
     CategoryUsage,
+    MonthlyTotal,
     Page,
     PaginatedResult,
+    PeriodSummary,
     StoredRefreshToken,
     TransactionFilters,
     UserCredentials,
 )
 from app.domain.entities import Category, Transaction, User
 from app.domain.enums import TransactionType
+from app.domain.value_objects import Money
 
 
 class FixedClock:
@@ -213,6 +217,53 @@ class FakeTransactionRepository:
         return PaginatedResult(
             entries=ventana, offset=page.offset, limit=page.limit, total_count=len(propios)
         )
+
+
+class FakeReportRepository:
+    """Devuelve lo que se le cargue.
+
+    No agrega nada: las agregaciones son SQL puro y se prueban contra MySQL.
+    Acá solo interesa lo que el caso de uso hace *con* los totales, que es
+    resolver el período, validar la moneda y rellenar los meses vacíos.
+    """
+
+    def __init__(self) -> None:
+        self.resumen: PeriodSummary | None = None
+        self.por_categoria: list[CategoryTotal] = []
+        self.mensuales: list[MonthlyTotal] = []
+        self.periodos_pedidos: list[tuple[date, date]] = []
+
+    async def period_summary(
+        self, user_id: int, currency: str, date_from: date, date_to: date
+    ) -> PeriodSummary:
+        self.periodos_pedidos.append((date_from, date_to))
+        if self.resumen is not None:
+            return self.resumen
+        cero = Money.zero(currency)
+        return PeriodSummary(
+            currency=currency,
+            date_from=date_from,
+            date_to=date_to,
+            income=cero,
+            expense=cero,
+        )
+
+    async def totals_by_category(
+        self,
+        user_id: int,
+        currency: str,
+        date_from: date,
+        date_to: date,
+        type: TransactionType | None = None,
+    ) -> list[CategoryTotal]:
+        self.periodos_pedidos.append((date_from, date_to))
+        return self.por_categoria
+
+    async def monthly_totals(
+        self, user_id: int, currency: str, date_from: date, date_to: date
+    ) -> list[MonthlyTotal]:
+        self.periodos_pedidos.append((date_from, date_to))
+        return self.mensuales
 
 
 class FakeRecurringOccurrenceRepository:
