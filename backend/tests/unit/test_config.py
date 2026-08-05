@@ -19,6 +19,11 @@ def _settings(**overrides: Any) -> Settings:
         "supported_currencies": "ARS",
         "app_timezone": "America/Argentina/Buenos_Aires",
         "cors_origins": "http://localhost:5173,http://localhost:8080",
+        # Los tests de producción necesitan partir de valores válidos para poder
+        # invalidar uno solo por vez.
+        "argon2_time_cost": 3,
+        "argon2_memory_cost_kib": 65536,
+        "argon2_parallelism": 4,
     }
     base.update(overrides)
     return Settings(**base)
@@ -89,6 +94,29 @@ def test_produccion_rechaza_secretos_cortos() -> None:
     # Arrange / Act / Assert
     with pytest.raises(ValidationError, match="32 caracteres"):
         _settings(app_env="production", jwt_secret_key="corto")
+
+
+def test_produccion_rechaza_un_argon2_barato() -> None:
+    """Impide que la configuración de la suite de tests llegue a producción.
+
+    Sin esta validación, arrastrar ARGON2_TIME_COST=1 dejaría las contraseñas
+    con un hashing trivial de romper y nada lo delataría en runtime.
+    """
+    # Arrange / Act / Assert
+    with pytest.raises(ValidationError, match="ARGON2_TIME_COST"):
+        _settings(app_env="production", jwt_secret_key="x" * 40, argon2_time_cost=1)
+
+    with pytest.raises(ValidationError, match="ARGON2_MEMORY_COST_KIB"):
+        _settings(app_env="production", jwt_secret_key="x" * 40, argon2_memory_cost_kib=8)
+
+
+def test_produccion_acepta_los_parametros_por_defecto_de_argon2() -> None:
+    # Arrange / Act
+    settings = _settings(app_env="production", jwt_secret_key="x" * 40)
+
+    # Assert
+    assert settings.is_production
+    assert settings.argon2_memory_cost_kib >= 19456
 
 
 def test_desarrollo_tolera_el_secreto_de_ejemplo() -> None:

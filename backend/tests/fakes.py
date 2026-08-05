@@ -10,8 +10,15 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import date, datetime, timedelta
 
-from app.application.dtos import CategoryUsage, StoredRefreshToken, UserCredentials
-from app.domain.entities import Category, User
+from app.application.dtos import (
+    CategoryUsage,
+    Page,
+    PaginatedResult,
+    StoredRefreshToken,
+    TransactionFilters,
+    UserCredentials,
+)
+from app.domain.entities import Category, Transaction, User
 from app.domain.enums import TransactionType
 
 
@@ -156,6 +163,64 @@ class FakeCategoryRepository:
 
     async def count_usages(self, category_id: int) -> CategoryUsage:
         return self.usos.get(category_id, CategoryUsage(0, 0, 0))
+
+
+class FakeTransactionRepository:
+    """Fake deliberadamente simple.
+
+    `search` NO reimplementa los filtros, el orden ni la paginación: eso es
+    responsabilidad del repositorio real y se prueba contra MySQL en los tests
+    de integración. Un fake que duplicara esa lógica podría divergir del SQL y
+    dejar pasar tests que en producción fallan.
+    """
+
+    def __init__(self) -> None:
+        self.movimientos: dict[int, Transaction] = {}
+        self._siguiente_id = 1
+
+    async def create(self, transaction: Transaction) -> Transaction:
+        transaction.id = self._siguiente_id
+        self._siguiente_id += 1
+        self.movimientos[transaction.id] = transaction
+        return transaction
+
+    async def update(self, transaction: Transaction) -> Transaction:
+        if transaction.id is None or transaction.id not in self.movimientos:
+            raise ValueError("El movimiento no existe.")
+        self.movimientos[transaction.id] = transaction
+        return transaction
+
+    async def delete(self, user_id: int, transaction_id: int) -> None:
+        movimiento = self.movimientos.get(transaction_id)
+        if movimiento is not None and movimiento.user_id == user_id:
+            del self.movimientos[transaction_id]
+
+    async def get_for_user(self, user_id: int, transaction_id: int) -> Transaction | None:
+        movimiento = self.movimientos.get(transaction_id)
+        if movimiento is None or movimiento.user_id != user_id:
+            return None
+        return movimiento
+
+    async def search(
+        self, user_id: int, filters: TransactionFilters, page: Page
+    ) -> PaginatedResult[Transaction]:
+        propios = [
+            m
+            for m in self.movimientos.values()
+            if m.user_id == user_id and m.money.currency == filters.currency
+        ]
+        ventana = propios[page.offset : page.offset + page.limit]
+        return PaginatedResult(
+            entries=ventana, offset=page.offset, limit=page.limit, total_count=len(propios)
+        )
+
+
+class FakeRecurringOccurrenceRepository:
+    def __init__(self) -> None:
+        self.salteadas: list[int] = []
+
+    async def mark_skipped_by_transaction(self, transaction_id: int) -> None:
+        self.salteadas.append(transaction_id)
 
 
 class FakeRefreshTokenRepository:

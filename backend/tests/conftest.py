@@ -35,6 +35,13 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-dummy-test")
 os.environ.setdefault("APP_TIMEZONE", "America/Argentina/Buenos_Aires")
 os.environ.setdefault("DEFAULT_CURRENCY", "ARS")
 os.environ.setdefault("SUPPORTED_CURRENCIES", "ARS")
+# Argon2 con el costo mínimo: en producción es caro a propósito, pero en la
+# suite solo agrega segundos sin probar nada que no cubra test_password_hasher.
+# La configuración de producción exige pisos mayores y falla al arrancar si se
+# le cuelan estos valores (ver `Settings._validar_produccion`).
+os.environ.setdefault("ARGON2_TIME_COST", "1")
+os.environ.setdefault("ARGON2_MEMORY_COST_KIB", "8")
+os.environ.setdefault("ARGON2_PARALLELISM", "1")
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL") or _derivar_url_de_test(
     os.environ.get("DATABASE_URL", _URL_POR_DEFECTO)
 )
