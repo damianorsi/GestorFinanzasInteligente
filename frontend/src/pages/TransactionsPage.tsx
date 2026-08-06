@@ -134,12 +134,19 @@ export function TransactionsPage() {
       {movimientos.isSuccess && movimientos.data.entries.length > 0 && (
         <>
           <div className="tabla__contenedor">
-            <table className="tabla">
+            {/*
+              En celular esta tabla se muestra como tarjetas: cada fila pasa a
+              ser un bloque y el encabezado de columna viaja en `data-label`.
+              Los `role` van explícitos porque cambiar el `display` de los
+              elementos de tabla borra su semántica implícita, y sin ellos un
+              lector de pantalla dejaría de anunciarla como tabla.
+            */}
+            <table className="tabla tabla--tarjetas" role="table">
               <caption className="visualmente-oculto">
                 Movimientos registrados, {total} en total
               </caption>
               <thead>
-                <tr>
+                <tr role="row">
                   <th scope="col">Fecha</th>
                   <th scope="col">Categoría</th>
                   <th scope="col">Descripción</th>
@@ -153,9 +160,11 @@ export function TransactionsPage() {
               </thead>
               <tbody>
                 {movimientos.data.entries.map((movimiento) => (
-                  <tr key={movimiento.id}>
-                    <td>{formatDate(movimiento.occurred_on)}</td>
-                    <td>
+                  <tr key={movimiento.id} role="row">
+                    <td role="cell" data-label="Fecha">
+                      {formatDate(movimiento.occurred_on)}
+                    </td>
+                    <td role="cell" data-label="Categoría">
                       {nombrePorCategoria.get(movimiento.category_id) ?? '—'}
                       {movimiento.is_recurring && (
                         <span className="etiqueta" title="Generado por una regla recurrente">
@@ -163,8 +172,12 @@ export function TransactionsPage() {
                         </span>
                       )}
                     </td>
-                    <td>{movimiento.description || '—'}</td>
+                    <td role="cell" data-label="Descripción">
+                      {movimiento.description || '—'}
+                    </td>
                     <td
+                      role="cell"
+                      data-label="Monto"
                       className={
                         movimiento.type === 'INCOME'
                           ? 'tabla__numero tabla__numero--positivo'
@@ -174,7 +187,7 @@ export function TransactionsPage() {
                       {movimiento.type === 'INCOME' ? '+' : '−'}
                       {formatMoney(movimiento.amount, movimiento.currency)}
                     </td>
-                    <td className="tabla__acciones">
+                    <td role="cell" className="tabla__acciones">
                       <button
                         type="button"
                         className="boton boton--secundario boton--chico"
