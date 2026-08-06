@@ -28,6 +28,10 @@ del usuario.
 
 ## Puesta en marcha
 
+> **¿Primera vez?** La [guía de instalación](docs/INSTALACION.md) tiene el paso a paso
+> completo: versiones exactas, qué configurar en `.env`, cómo verificar que quedó bien y
+> qué hacer cuando algo falla. Lo de acá abajo es el resumen.
+
 ### Requisitos
 
 - Docker Desktop (con el daemon corriendo)

@@ -16,14 +16,14 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from app.application.use_cases.recurring import GenerateRecurringTransactions
-from app.core.config import Settings
+from app.core.config import Settings, get_settings
 from app.infrastructure.clock import SystemClock
 from app.infrastructure.db.repositories import (
     SqlAlchemyCategoryRepository,
     SqlAlchemyRecurringOccurrenceRepository,
     SqlAlchemyRecurringRuleRepository,
 )
-from app.infrastructure.db.session import session_scope
+from app.infrastructure.db.session import dispose_engine, session_scope
 
 logger = logging.getLogger(__name__)
 
@@ -113,3 +113,29 @@ def iniciar_scheduler(settings: Settings) -> AsyncIOScheduler | None:
         extra={"hora": settings.recurring_job_hour, "timezone": settings.app_timezone},
     )
     return scheduler
+
+
+async def _correr_a_mano() -> None:
+    """Una corrida puntual desde la línea de comandos.
+
+    `python -m app.infrastructure.scheduler` dispara el job sin esperar a la
+    hora programada. Sirve para retomar tras una caída y para ver una regla
+    recién creada generar sus movimientos.
+
+    El `dispose_engine` no es opcional: sin él, `asyncio.run` cierra el loop
+    antes de que aiomysql suelte sus conexiones y el comando termina escupiendo
+    un `RuntimeError: Event loop is closed` que no significa nada.
+    """
+    settings = get_settings()
+    await ejecutar_generacion(settings)
+    if estado.ultimo_error is None:
+        print(f"Job ejecutado. Movimientos generados: {estado.ultimos_generados}")
+    else:
+        print(f"El job falló: {estado.ultimo_error}. Revisá los logs.")
+    await dispose_engine()
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    asyncio.run(_correr_a_mano())
