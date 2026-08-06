@@ -14,6 +14,7 @@ from app.api.v1.routers import (
     budgets,
     categories,
     chat,
+    recurring_rules,
     reports,
     transactions,
     users,
@@ -26,4 +27,5 @@ api_router.include_router(categories.router)
 api_router.include_router(transactions.router)
 api_router.include_router(reports.router)
 api_router.include_router(budgets.router)
+api_router.include_router(recurring_rules.router)
 api_router.include_router(chat.router)

@@ -16,6 +16,7 @@ from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging, request_id_var
 from app.infrastructure.db.session import dispose_engine
+from app.infrastructure.scheduler import iniciar_scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             "default_currency": settings.default_currency,
         },
     )
+    scheduler = iniciar_scheduler(settings)
     yield
+    if scheduler is not None:
+        # `wait=False` para no bloquear el apagado si el job está corriendo: la
+        # idempotencia del caso de uso hace que retomarlo mañana sea seguro.
+        scheduler.shutdown(wait=False)
     await dispose_engine()
     logger.info("Aplicación detenida")
 

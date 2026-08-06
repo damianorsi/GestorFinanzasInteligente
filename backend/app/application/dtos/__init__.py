@@ -28,6 +28,11 @@ from app.application.dtos.pagination import (
     Page,
     PaginatedResult,
 )
+from app.application.dtos.recurring import (
+    GenerationResult,
+    UpcomingOccurrence,
+    UpcomingSummary,
+)
 from app.application.dtos.reports import (
     CategoryBreakdown,
     CategoryTotal,
@@ -56,6 +61,7 @@ __all__ = [
     "CategoryTotal",
     "CategoryUsage",
     "ChatMessage",
+    "GenerationResult",
     "IssuedToken",
     "MonthlyTotal",
     "MonthlyTrend",
@@ -75,5 +81,7 @@ __all__ = [
     "TransactionExportRow",
     "TransactionFilters",
     "UnbudgetedSpending",
+    "UpcomingOccurrence",
+    "UpcomingSummary",
     "UserCredentials",
 ]

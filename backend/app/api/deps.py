@@ -52,6 +52,14 @@ from app.application.use_cases.categories import (
     UpdateCategory,
 )
 from app.application.use_cases.chat import AskAssistant, GetChatHistory
+from app.application.use_cases.recurring import (
+    CreateRecurringRule,
+    DeleteRecurringRule,
+    GetRuleOccurrences,
+    GetUpcomingOccurrences,
+    ListRecurringRules,
+    UpdateRecurringRule,
+)
 from app.application.use_cases.reports import (
     GetCategoryBreakdown,
     GetMonthlyTrend,
@@ -399,6 +407,69 @@ def get_ask_assistant(
 
 def get_chat_history(chat: Chats, settings: AppSettings) -> GetChatHistory:
     return GetChatHistory(chat, settings.chat_history_window)
+
+
+# --- Recurrentes -----------------------------------------------------------
+def get_list_recurring_rules(
+    rules: Rules, categories: Categories, settings: AppSettings
+) -> ListRecurringRules:
+    return ListRecurringRules(
+        rules, categories, settings.supported_currencies_set, settings.default_currency
+    )
+
+
+def get_create_recurring_rule(
+    rules: Rules, categories: Categories, settings: AppSettings
+) -> CreateRecurringRule:
+    return CreateRecurringRule(
+        rules, categories, settings.supported_currencies_set, settings.default_currency
+    )
+
+
+def get_update_recurring_rule(
+    rules: Rules,
+    categories: Categories,
+    occurrences: Occurrences,
+    clock: AppClock,
+    settings: AppSettings,
+) -> UpdateRecurringRule:
+    return UpdateRecurringRule(
+        rules,
+        categories,
+        occurrences,
+        clock,
+        settings.supported_currencies_set,
+        settings.default_currency,
+        settings.recurring_catchup_max_days,
+    )
+
+
+def get_delete_recurring_rule(
+    rules: Rules, categories: Categories, settings: AppSettings
+) -> DeleteRecurringRule:
+    return DeleteRecurringRule(
+        rules, categories, settings.supported_currencies_set, settings.default_currency
+    )
+
+
+def get_rule_occurrences(
+    rules: Rules, categories: Categories, occurrences: Occurrences, settings: AppSettings
+) -> GetRuleOccurrences:
+    return GetRuleOccurrences(
+        rules,
+        categories,
+        occurrences,
+        settings.supported_currencies_set,
+        settings.default_currency,
+    )
+
+
+def get_upcoming_occurrences(
+    rules: Rules, clock: AppClock, settings: AppSettings
+) -> GetUpcomingOccurrences:
+    return GetUpcomingOccurrences(
+        rules, clock, settings.supported_currencies_set, settings.default_currency
+    )
 
 
 # --- Usuario autenticado ---------------------------------------------------

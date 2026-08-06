@@ -7,7 +7,7 @@ métodos llamó, que es lo que termina rompiéndose en cada refactor.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from datetime import date, datetime, timedelta
 
 from app.application.dtos import (
@@ -23,8 +23,15 @@ from app.application.dtos import (
     TransactionFilters,
     UserCredentials,
 )
-from app.domain.entities import Budget, Category, RecurringRule, Transaction, User
-from app.domain.enums import ChatRole, TransactionType
+from app.domain.entities import (
+    Budget,
+    Category,
+    RecurringOccurrence,
+    RecurringRule,
+    Transaction,
+    User,
+)
+from app.domain.enums import ChatRole, OccurrenceStatus, TransactionType
 from app.domain.value_objects import Money
 
 
@@ -335,23 +342,119 @@ class FakeReportRepository:
 
 
 class FakeRecurringOccurrenceRepository:
+    """Libro mayor en memoria, con la misma unicidad que la tabla real.
+
+    La clave del diccionario es `(rule_id, occurred_on)`, que es exactamente la
+    UNIQUE de `recurring_occurrences`: así el fake no puede aceptar un
+    duplicado que la base rechazaría.
+    """
+
     def __init__(self) -> None:
         self.salteadas: list[int] = []
+        self.ocurrencias: dict[tuple[int, date], RecurringOccurrence] = {}
+        self.movimientos: list[Transaction] = []
+        self._siguiente_id = 1
 
     async def mark_skipped_by_transaction(self, transaction_id: int) -> None:
         self.salteadas.append(transaction_id)
+        for ocurrencia in self.ocurrencias.values():
+            if ocurrencia.transaction_id == transaction_id:
+                ocurrencia.saltear()
+
+    async def resolved_dates(self, rule_id: int) -> set[date]:
+        return {fecha for (regla, fecha) in self.ocurrencias if regla == rule_id}
+
+    async def list_for_rule(self, rule_id: int) -> list[RecurringOccurrence]:
+        propias = [o for (regla, _), o in self.ocurrencias.items() if regla == rule_id]
+        return sorted(propias, key=lambda o: o.occurred_on, reverse=True)
+
+    async def mark_skipped(self, rule_id: int, dates: Iterable[date]) -> int:
+        pendientes = set(dates) - await self.resolved_dates(rule_id)
+        for fecha in sorted(pendientes):
+            self.ocurrencias[(rule_id, fecha)] = RecurringOccurrence(
+                id=self._nuevo_id(),
+                rule_id=rule_id,
+                occurred_on=fecha,
+                status=OccurrenceStatus.SKIPPED,
+            )
+        return len(pendientes)
+
+    async def register_generated(self, transaction: Transaction, occurred_on: date) -> bool:
+        clave = (transaction.recurring_rule_id or 0, occurred_on)
+        if clave in self.ocurrencias:
+            return False
+
+        transaction.id = self._nuevo_id()
+        self.movimientos.append(transaction)
+        self.ocurrencias[clave] = RecurringOccurrence(
+            id=self._nuevo_id(),
+            rule_id=transaction.recurring_rule_id or 0,
+            occurred_on=occurred_on,
+            status=OccurrenceStatus.GENERATED,
+            transaction_id=transaction.id,
+        )
+        return True
+
+    def _nuevo_id(self) -> int:
+        self._siguiente_id += 1
+        return self._siguiente_id
 
 
 class FakeRecurringRuleRepository:
     def __init__(self) -> None:
         self.reglas: list[RecurringRule] = []
+        self._siguiente_id = 1
 
-    async def list_active_for_user(self, user_id: int, currency: str) -> list[RecurringRule]:
+    def agregar(self, regla: RecurringRule) -> RecurringRule:
+        """Siembra una regla sin pasar por el caso de uso."""
+        if regla.id is None:
+            self._siguiente_id += 1
+            regla.id = self._siguiente_id
+        self.reglas.append(regla)
+        return regla
+
+    async def create(self, rule: RecurringRule) -> RecurringRule:
+        return self.agregar(rule)
+
+    async def update(self, rule: RecurringRule) -> RecurringRule:
+        for indice, existente in enumerate(self.reglas):
+            if existente.id == rule.id:
+                self.reglas[indice] = rule
+                return rule
+        raise ValueError(f"La regla {rule.id} no existe.")
+
+    async def delete(self, user_id: int, rule_id: int) -> None:
+        self.reglas = [
+            regla for regla in self.reglas if not (regla.id == rule_id and regla.user_id == user_id)
+        ]
+
+    async def get_for_user(self, user_id: int, rule_id: int) -> RecurringRule | None:
+        return next(
+            (r for r in self.reglas if r.id == rule_id and r.user_id == user_id),
+            None,
+        )
+
+    async def list_for_user(
+        self, user_id: int, currency: str, is_active: bool | None = None
+    ) -> list[RecurringRule]:
         return [
             regla
             for regla in self.reglas
-            if regla.user_id == user_id and regla.currency == currency and regla.is_active
+            if regla.user_id == user_id
+            and regla.currency == currency
+            and (is_active is None or regla.is_active is is_active)
         ]
+
+    async def list_active_for_user(self, user_id: int, currency: str) -> list[RecurringRule]:
+        return await self.list_for_user(user_id, currency, is_active=True)
+
+    async def list_all_active(self) -> list[RecurringRule]:
+        return [regla for regla in self.reglas if regla.is_active]
+
+    async def deactivate(self, rule_id: int) -> None:
+        for regla in self.reglas:
+            if regla.id == rule_id:
+                regla.is_active = False
 
 
 class FakeChatRepository:
