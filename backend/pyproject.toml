@@ -28,6 +28,13 @@ dependencies = [
     # falla con "cryptography package is required".
     "cryptography>=43.0",
     "alembic>=1.14",
+    # Asistente conversacional. `langchain-openai` trae el cliente del modelo y
+    # `langchain` el agente con tool calling.
+    # El major va acotado a propósito: `create_agent` y `ModelCallLimitMiddleware`
+    # son de la 1.x. La 0.3 traía `AgentExecutor`, que ya no existe, así que un
+    # rango más laxo dejaría instalar una versión donde la app no arranca.
+    "langchain>=1.3,<2",
+    "langchain-openai>=1.4,<2",
 ]
 
 [project.optional-dependencies]

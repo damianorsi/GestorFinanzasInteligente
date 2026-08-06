@@ -13,16 +13,18 @@ from datetime import date, datetime, timedelta
 from app.application.dtos import (
     CategoryTotal,
     CategoryUsage,
+    ChatMessage,
     MonthlyTotal,
     Page,
     PaginatedResult,
     PeriodSummary,
     StoredRefreshToken,
+    TokenUsage,
     TransactionFilters,
     UserCredentials,
 )
-from app.domain.entities import Budget, Category, Transaction, User
-from app.domain.enums import TransactionType
+from app.domain.entities import Budget, Category, RecurringRule, Transaction, User
+from app.domain.enums import ChatRole, TransactionType
 from app.domain.value_objects import Money
 
 
@@ -294,11 +296,13 @@ class FakeReportRepository:
         self.por_categoria: list[CategoryTotal] = []
         self.mensuales: list[MonthlyTotal] = []
         self.periodos_pedidos: list[tuple[date, date]] = []
+        self.usuarios_pedidos: list[int] = []
 
     async def period_summary(
         self, user_id: int, currency: str, date_from: date, date_to: date
     ) -> PeriodSummary:
         self.periodos_pedidos.append((date_from, date_to))
+        self.usuarios_pedidos.append(user_id)
         if self.resumen is not None:
             return self.resumen
         cero = Money.zero(currency)
@@ -319,12 +323,14 @@ class FakeReportRepository:
         type: TransactionType | None = None,
     ) -> list[CategoryTotal]:
         self.periodos_pedidos.append((date_from, date_to))
+        self.usuarios_pedidos.append(user_id)
         return self.por_categoria
 
     async def monthly_totals(
         self, user_id: int, currency: str, date_from: date, date_to: date
     ) -> list[MonthlyTotal]:
         self.periodos_pedidos.append((date_from, date_to))
+        self.usuarios_pedidos.append(user_id)
         return self.mensuales
 
 
@@ -334,6 +340,59 @@ class FakeRecurringOccurrenceRepository:
 
     async def mark_skipped_by_transaction(self, transaction_id: int) -> None:
         self.salteadas.append(transaction_id)
+
+
+class FakeRecurringRuleRepository:
+    def __init__(self) -> None:
+        self.reglas: list[RecurringRule] = []
+
+    async def list_active_for_user(self, user_id: int, currency: str) -> list[RecurringRule]:
+        return [
+            regla
+            for regla in self.reglas
+            if regla.user_id == user_id and regla.currency == currency and regla.is_active
+        ]
+
+
+class FakeChatRepository:
+    """Historial y telemetría del asistente, en memoria.
+
+    Guarda los mensajes de todos los usuarios en una sola lista y filtra al
+    leer, igual que la tabla real: así un test de aislamiento falla si el
+    filtrado se cae, en vez de pasar porque cada usuario tenía su diccionario.
+    """
+
+    def __init__(self, ahora: datetime | None = None) -> None:
+        self.mensajes: list[tuple[int, str, ChatMessage]] = []
+        self.consumos: list[tuple[int, str, TokenUsage, int]] = []
+        # Público para que un test pueda mover el reloj y dejar mensajes viejos.
+        self.ahora = ahora or datetime(2026, 8, 5, 12, 0, 0)
+
+    async def save_message(
+        self, user_id: int, conversation_id: str, role: ChatRole, content: str
+    ) -> None:
+        mensaje = ChatMessage(role=role, content=content, created_at=self.ahora)
+        self.mensajes.append((user_id, conversation_id, mensaje))
+
+    async def history(self, user_id: int, conversation_id: str, limit: int) -> list[ChatMessage]:
+        propios = [
+            mensaje
+            for uid, cid, mensaje in self.mensajes
+            if uid == user_id and cid == conversation_id
+        ]
+        return propios[-limit:]
+
+    async def count_user_messages_since(self, user_id: int, since: datetime) -> int:
+        return sum(
+            1
+            for uid, _, mensaje in self.mensajes
+            if uid == user_id and mensaje.role is ChatRole.USER and mensaje.created_at >= since
+        )
+
+    async def save_usage(
+        self, user_id: int, conversation_id: str, usage: TokenUsage, latency_ms: int
+    ) -> None:
+        self.consumos.append((user_id, conversation_id, usage, latency_ms))
 
 
 class FakeRefreshTokenRepository:

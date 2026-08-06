@@ -16,6 +16,12 @@ from app.application.dtos.budgets import (
     UnbudgetedSpending,
 )
 from app.application.dtos.categories import CategoryUsage
+from app.application.dtos.chat import (
+    AssistantAnswer,
+    ChatMessage,
+    TemporalContext,
+    TokenUsage,
+)
 from app.application.dtos.pagination import (
     LIMITE_MAXIMO,
     LIMITE_POR_DEFECTO,
@@ -42,12 +48,14 @@ __all__ = [
     "LIMITE_MAXIMO",
     "LIMITE_POR_DEFECTO",
     "ORDEN_POR_DEFECTO",
+    "AssistantAnswer",
     "BudgetCopyResult",
     "BudgetProgress",
     "BudgetProgressReport",
     "CategoryBreakdown",
     "CategoryTotal",
     "CategoryUsage",
+    "ChatMessage",
     "IssuedToken",
     "MonthlyTotal",
     "MonthlyTrend",
@@ -59,9 +67,11 @@ __all__ = [
     "SortDirection",
     "SortField",
     "StoredRefreshToken",
+    "TemporalContext",
     "TokenClaims",
     "TokenPair",
     "TokenType",
+    "TokenUsage",
     "TransactionExportRow",
     "TransactionFilters",
     "UnbudgetedSpending",

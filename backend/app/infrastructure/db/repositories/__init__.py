@@ -2,8 +2,12 @@
 
 from app.infrastructure.db.repositories.budget_repository import SqlAlchemyBudgetRepository
 from app.infrastructure.db.repositories.category_repository import SqlAlchemyCategoryRepository
+from app.infrastructure.db.repositories.chat_repository import SqlAlchemyChatRepository
 from app.infrastructure.db.repositories.recurring_occurrence_repository import (
     SqlAlchemyRecurringOccurrenceRepository,
+)
+from app.infrastructure.db.repositories.recurring_rule_repository import (
+    SqlAlchemyRecurringRuleRepository,
 )
 from app.infrastructure.db.repositories.refresh_token_repository import (
     SqlAlchemyRefreshTokenRepository,
@@ -17,7 +21,9 @@ from app.infrastructure.db.repositories.user_repository import SqlAlchemyUserRep
 __all__ = [
     "SqlAlchemyBudgetRepository",
     "SqlAlchemyCategoryRepository",
+    "SqlAlchemyChatRepository",
     "SqlAlchemyRecurringOccurrenceRepository",
+    "SqlAlchemyRecurringRuleRepository",
     "SqlAlchemyRefreshTokenRepository",
     "SqlAlchemyReportRepository",
     "SqlAlchemyTransactionRepository",
