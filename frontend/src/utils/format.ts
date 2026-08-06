@@ -36,6 +36,20 @@ export function formatDate(iso: string): string {
   return `${dia}/${mes}/${anio}`
 }
 
+/**
+ * Formatea la hora de un timestamp ISO como `14:35`.
+ *
+ * A diferencia de `formatDate`, acá sí corresponde `new Date`: los timestamps
+ * de auditoría vienen con hora en UTC y hay que convertirlos a la zona de quien
+ * mira. El bug que evita `formatDate` es el opuesto —tratar como UTC una fecha
+ * que no tiene hora—, así que no aplica.
+ */
+export function formatTime(iso: string): string {
+  const momento = new Date(iso.endsWith('Z') || iso.includes('+') ? iso : `${iso}Z`)
+  if (Number.isNaN(momento.getTime())) return ''
+  return new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-digit' }).format(momento)
+}
+
 /** Formatea el período `2026-08` como `agosto 2026`. */
 export function formatPeriod(period: string): string {
   const partes = period.split('-')
