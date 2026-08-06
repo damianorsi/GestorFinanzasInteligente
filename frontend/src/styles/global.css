@@ -185,9 +185,15 @@ h2 {
 
 .layout__nav {
   display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--espacio);
+}
+
+.layout__links {
+  display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
-  flex: 1;
 }
 
 .layout__link {
@@ -208,11 +214,42 @@ h2 {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  /* Empuja la sesión al extremo derecho de la barra en escritorio. */
+  margin-left: auto;
 }
 
 .layout__usuario {
   font-size: 0.9rem;
   color: var(--color-texto-suave);
+}
+
+/* El botón de la hamburguesa solo existe en pantallas angostas. */
+.layout__hamburguesa {
+  display: none;
+  padding: 0.55rem;
+  border-radius: var(--radio);
+  border: 1px solid var(--color-borde);
+  background: var(--color-superficie);
+  cursor: pointer;
+}
+
+.layout__hamburguesa-icono {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 1.25rem;
+  height: 0.9rem;
+}
+
+.layout__hamburguesa-icono span {
+  display: block;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-texto);
+}
+
+.layout__telon {
+  display: none;
 }
 
 .layout__main {
@@ -691,6 +728,11 @@ h2 {
   /* La conversación ocupa el alto disponible para que el campo de escritura
      quede siempre a la vista, sin tener que bajar hasta el final. */
   min-height: calc(100vh - 9rem);
+  /* `dvh` descuenta la barra de direcciones del navegador móvil, que aparece y
+     desaparece al scrollear. Con `vh` a secas, el campo de escritura queda
+     tapado justo cuando el teclado está abierto. Va después para que los
+     navegadores que no lo soportan se queden con la línea de arriba. */
+  min-height: calc(100dvh - 9rem);
 }
 
 .chat__historial {
@@ -915,4 +957,298 @@ h2 {
   flex-wrap: wrap;
   gap: 0.4rem;
   margin-top: 0.75rem;
+}
+
+/* ===========================================================================
+   Celulares y tablets angostas
+   ===========================================================================
+   Un solo corte a 52rem (832px). Es el ancho por debajo del cual las siete
+   secciones mas el nombre del usuario dejan de entrar en una barra horizontal
+   sin envolverse en dos filas.
+   =========================================================================== */
+@media (max-width: 52rem) {
+  /* --- Menu hamburguesa --------------------------------------------------- */
+  .layout__header {
+    flex-wrap: nowrap;
+    gap: 0.75rem;
+  }
+
+  .layout__hamburguesa {
+    display: block;
+    /* 44px es el minimo recomendado para un objetivo tactil. */
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .layout__nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 20;
+    width: min(18rem, 82vw);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 1rem;
+    background: var(--color-superficie);
+    border-right: 1px solid var(--color-borde);
+    /* Fuera de la pantalla mientras esta cerrado. `visibility` ademas lo saca
+       del orden de tabulacion: si solo se moviera, se podria tabular hacia un
+       menu invisible. */
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 0.2s ease;
+    overflow-y: auto;
+  }
+
+  .layout__nav--abierto {
+    transform: translateX(0);
+    visibility: visible;
+  }
+
+  .layout__links {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 0.25rem;
+  }
+
+  .layout__link {
+    padding: 0.85rem 0.75rem;
+    font-size: 1rem;
+  }
+
+  .layout__sesion {
+    /* Al pie del panel: primero las secciones, abajo de todo quien sos y la
+       salida. */
+    margin-top: auto;
+    margin-left: 0;
+    padding-top: var(--espacio);
+    border-top: 1px solid var(--color-borde);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+  }
+
+  .layout__usuario {
+    font-size: 0.95rem;
+    color: var(--color-texto);
+    font-weight: 600;
+  }
+
+  .layout__telon {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    background: rgb(0 0 0 / 45%);
+  }
+
+  .layout__main {
+    padding: 1rem 0.75rem;
+  }
+
+  /* --- Encabezados de pagina --------------------------------------------- */
+  .pagina__encabezado {
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  /* El boton de accion principal ocupa el ancho: mas facil de acertar con el
+     pulgar que uno alineado a la derecha. */
+  .pagina__encabezado > .boton,
+  .pagina__acciones .boton {
+    width: 100%;
+  }
+
+  h1 {
+    font-size: 1.3rem;
+  }
+
+  /* --- Objetivos tactiles ------------------------------------------------- */
+  .boton {
+    min-height: 2.75rem;
+  }
+
+  .boton--chico {
+    min-height: 2.4rem;
+  }
+
+  .campo input,
+  .campo select,
+  .chat__entrada {
+    /* Menos de 16px hace que iOS haga zoom al enfocar el campo y descoloque
+       toda la pantalla. */
+    font-size: 1rem;
+  }
+
+  /* --- Filtros y selectores ----------------------------------------------- */
+  .filtros__campos {
+    grid-template-columns: 1fr;
+  }
+
+  .filtros .boton {
+    width: 100%;
+  }
+
+  .selector-de-mes {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  /* --- Tabla de movimientos: de filas a tarjetas -------------------------- */
+  /* Una tabla de seis columnas en 375px obliga a scrollear en horizontal para
+     leer un solo movimiento. Aca cada fila pasa a ser una tarjeta y el
+     encabezado de columna viaja en `data-label`. Los `role` explicitos del TSX
+     estan porque cambiar el `display` de los elementos de tabla borra su
+     semantica implicita, y sin ellos un lector de pantalla dejaria de
+     anunciarla como tabla. */
+  .tabla--tarjetas thead {
+    display: none;
+  }
+
+  .tabla--tarjetas,
+  .tabla--tarjetas tbody,
+  .tabla--tarjetas tr,
+  .tabla--tarjetas td {
+    display: block;
+    width: 100%;
+  }
+
+  .tabla--tarjetas tr {
+    padding: 0.75rem 0.85rem;
+    border-bottom: 1px solid var(--color-borde);
+  }
+
+  .tabla--tarjetas td {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.2rem 0;
+    border: 0;
+    text-align: right;
+  }
+
+  .tabla--tarjetas td::before {
+    content: attr(data-label);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--color-texto-suave);
+    text-align: left;
+  }
+
+  /* La celda de acciones no lleva etiqueta: los botones ya se explican. */
+  .tabla--tarjetas td.tabla__acciones::before {
+    content: none;
+  }
+
+  .tabla--tarjetas .tabla__acciones {
+    justify-content: flex-end;
+    padding-top: 0.5rem;
+  }
+
+  .paginador {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  /* --- Graficos ----------------------------------------------------------- */
+  .grafico {
+    padding: 0.75rem;
+  }
+
+  /* --- Reglas recurrentes ------------------------------------------------- */
+  .regla__acciones .boton {
+    flex: 1 1 45%;
+  }
+
+  /* --- Listas ------------------------------------------------------------- */
+  .lista__item {
+    flex-wrap: wrap;
+  }
+
+  .lista__acciones {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  /* --- Modales ------------------------------------------------------------ */
+  .modal {
+    width: 100%;
+    max-height: 92vh;
+  }
+
+  .modal__acciones {
+    flex-direction: column-reverse;
+  }
+
+  .modal__acciones .boton {
+    width: 100%;
+  }
+}
+
+/* Contenedor de scroll sin marco, para las tablas que van dentro de una figura
+   que ya tiene borde propio. El body nunca desborda en horizontal: lo que no
+   entra, scrollea adentro de su propia caja. */
+.tabla__scroll {
+  overflow-x: auto;
+}
+
+/* --- Alto de los graficos, en cualquier tamano ----------------------------- */
+.grafico__lienzo {
+  width: 100%;
+  /* Crece con el viewport pero nunca se achata tanto que las etiquetas se
+     pisen, ni ocupa una pantalla entera en el celular. */
+  height: clamp(13rem, 42vw + 6rem, 20rem);
+}
+
+/* --- Boton flotante del asistente ------------------------------------------ */
+.fab-asistente {
+  position: fixed;
+  right: var(--espacio);
+  /* `safe-area-inset` mantiene el boton por encima de la barra de gestos de
+     iOS, que si no lo tapa. */
+  bottom: calc(var(--espacio) + env(safe-area-inset-bottom, 0px));
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.1rem;
+  border-radius: 999px;
+  background: var(--color-primario);
+  color: var(--color-primario-texto);
+  text-decoration: none;
+  font-weight: 600;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 25%);
+}
+
+.fab-asistente:hover {
+  filter: brightness(1.08);
+}
+
+.fab-asistente__icono {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+@media (max-width: 52rem) {
+  .fab-asistente {
+    /* Solo el icono: el texto al lado comeria demasiado ancho. */
+    padding: 0;
+    width: 3.5rem;
+    height: 3.5rem;
+    justify-content: center;
+  }
+
+  .fab-asistente__texto {
+    display: none;
+  }
+}
+
+/* Espacio al pie para que el boton flotante no tape la ultima fila. */
+.pagina--con-fab {
+  padding-bottom: 5rem;
 }

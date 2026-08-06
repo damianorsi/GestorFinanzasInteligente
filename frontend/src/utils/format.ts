@@ -71,6 +71,21 @@ export function formatPercent(percentage: string): string {
   }).format(valor)}%`
 }
 
+/**
+ * Formatea un número en notación compacta: `900000` como `900 mil`.
+ *
+ * Es para los ejes de los gráficos y nada más. En un celular, un eje con
+ * `1.200.000` de ancho se lleva un tercio de la pantalla y deja las barras
+ * aplastadas contra el borde.
+ */
+export function formatCompact(valor: number): string {
+  if (!Number.isFinite(valor)) return ''
+  return new Intl.NumberFormat(LOCALE, {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(valor)
+}
+
 /** `true` si el monto de la API es negativo, para decidir el color. */
 export function isNegative(amount: string): boolean {
   return Number(amount) < 0

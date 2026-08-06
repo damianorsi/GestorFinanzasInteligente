@@ -31,7 +31,7 @@ export function DashboardPage() {
   const gastos = (desglose.data?.entries ?? []).filter((e) => e.type === 'EXPENSE')
 
   return (
-    <section className="pagina">
+    <section className="pagina pagina--con-fab">
       <h1>Hola, {usuario?.full_name}</h1>
 
       {resumen.isPending && <Cargando mensaje="Cargando tu resumen…" />}
@@ -147,6 +147,18 @@ export function DashboardPage() {
           moneda={tendencia.data.currency}
         />
       )}
+
+      {/*
+        Atajo al asistente desde el resumen, que es donde se mira el mes y
+        surgen las preguntas. En el celular queda solo el ícono; el texto
+        volvería a comer el ancho que se acaba de liberar.
+      */}
+      <Link to="/chat" className="fab-asistente" aria-label="Abrir el asistente">
+        <span className="fab-asistente__icono" aria-hidden="true">
+          💬
+        </span>
+        <span className="fab-asistente__texto">Asistente</span>
+      </Link>
     </section>
   )
 }
