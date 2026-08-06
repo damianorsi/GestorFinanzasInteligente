@@ -5,9 +5,9 @@ import { BudgetsPage } from '@/pages/BudgetsPage'
 import { CategoriesPage } from '@/pages/CategoriesPage'
 import { ChatPage } from '@/pages/ChatPage'
 import { DashboardPage } from '@/pages/DashboardPage'
-import { EnConstruccionPage } from '@/pages/EnConstruccionPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { RecurringPage } from '@/pages/RecurringPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { ReportsPage } from '@/pages/ReportsPage'
 import { TransactionsPage } from '@/pages/TransactionsPage'
@@ -30,10 +30,7 @@ export function App() {
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/budgets" element={<BudgetsPage />} />
           <Route path="/reports" element={<ReportsPage />} />
-          <Route
-            path="/recurring"
-            element={<EnConstruccionPage titulo="Movimientos recurrentes" fase="fase 13" />}
-          />
+          <Route path="/recurring" element={<RecurringPage />} />
           <Route path="/chat" element={<ChatPage />} />
         </Route>
       </Route>

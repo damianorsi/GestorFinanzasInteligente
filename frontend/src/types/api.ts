@@ -146,3 +146,56 @@ export interface ChatAnswer {
    */
   degraded: boolean
 }
+
+export type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
+export type OccurrenceStatus = 'GENERATED' | 'SKIPPED'
+
+export interface RecurringRule {
+  id: number
+  category_id: number
+  type: TransactionType
+  amount: string
+  currency: string
+  description: string
+  frequency: RecurrenceFrequency
+  day_of_month: number | null
+  day_of_week: number | null
+  starts_on: string
+  ends_on: string | null
+  is_active: boolean
+  /** Próximas fechas que la regla va a generar, calculadas por el backend. */
+  next_dates: string[]
+}
+
+export interface Occurrence {
+  id: number
+  occurred_on: string
+  status: OccurrenceStatus
+  /** Null en una GENERATED significa que el movimiento se generó y se borró. */
+  transaction_id: number | null
+}
+
+export interface UpcomingEntry {
+  rule_id: number
+  category_id: number
+  description: string
+  amount: string
+  currency: string
+  type: TransactionType
+  due_on: string
+}
+
+/**
+ * Vencimientos proyectados.
+ *
+ * No son movimientos: no entran en el balance, ni en los reportes, ni en el
+ * export CSV. La pantalla tiene que dejarlo claro.
+ */
+export interface UpcomingSummary {
+  date_from: string
+  date_to: string
+  currency: string
+  entries: UpcomingEntry[]
+  projected_income: string
+  projected_expense: string
+}

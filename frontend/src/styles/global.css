@@ -849,3 +849,70 @@ h2 {
     max-width: 100%;
   }
 }
+
+/* --- Reglas recurrentes --------------------------------------------------- */
+.reglas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.regla {
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  padding: var(--espacio);
+}
+
+/* Una regla pausada se distingue de un vistazo: si se viera igual, alguien
+   podría pasar meses esperando movimientos que nunca se van a generar. */
+.regla--pausada {
+  opacity: 0.7;
+  border-style: dashed;
+}
+
+.regla__cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.regla__descripcion {
+  font-weight: 600;
+}
+
+.regla__monto {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.regla__monto--positivo {
+  color: var(--color-ok);
+}
+
+.regla__monto--negativo {
+  color: var(--color-error);
+}
+
+.regla__detalle,
+.regla__proximas {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  color: var(--color-texto-suave);
+}
+
+.regla__proximas--pausada {
+  color: var(--color-alerta);
+}
+
+.regla__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}

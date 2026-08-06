@@ -7,9 +7,12 @@ import type {
   CategoryBreakdown,
   ChatMessage,
   MonthlyTrend,
+  Occurrence,
   PeriodSummary,
+  RecurringRule,
   TokenResponse,
   Transaction,
+  UpcomingSummary,
   User,
 } from '@/types/api'
 
@@ -57,6 +60,10 @@ interface Store {
   progreso: BudgetProgress
   /** Mensajes del asistente, indexados por `conversation_id`. */
   conversaciones: Record<string, ChatMessage[]>
+  reglas: RecurringRule[]
+  /** Ocurrencias por `rule_id`. */
+  ocurrencias: Record<number, Occurrence[]>
+  vencimientos: UpcomingSummary
 }
 
 function estadoInicial(): Store {
@@ -150,6 +157,48 @@ function estadoInicial(): Store {
       exceeded_count: 1,
     },
     conversaciones: {},
+    reglas: [
+      {
+        id: 300,
+        category_id: 20,
+        type: 'EXPENSE',
+        amount: '45000.00',
+        currency: 'ARS',
+        description: 'Alquiler',
+        frequency: 'MONTHLY',
+        day_of_month: 10,
+        day_of_week: null,
+        starts_on: '2026-01-10',
+        ends_on: null,
+        is_active: true,
+        next_dates: ['2026-09-10', '2026-10-10', '2026-11-10'],
+      },
+    ],
+    ocurrencias: {
+      300: [
+        { id: 400, occurred_on: '2026-08-10', status: 'GENERATED', transaction_id: 900 },
+        // Generada y borrada después: el job no la vuelve a crear.
+        { id: 401, occurred_on: '2026-07-10', status: 'SKIPPED', transaction_id: null },
+      ],
+    },
+    vencimientos: {
+      date_from: '2026-08-06',
+      date_to: '2026-09-05',
+      currency: 'ARS',
+      entries: [
+        {
+          rule_id: 300,
+          category_id: 20,
+          description: 'Alquiler',
+          amount: '45000.00',
+          currency: 'ARS',
+          type: 'EXPENSE',
+          due_on: '2026-09-10',
+        },
+      ],
+      projected_income: '0.00',
+      projected_expense: '45000.00',
+    },
   }
 }
 
@@ -366,6 +415,60 @@ export const handlers = [
       { status: 201 },
     )
   }),
+
+  /*
+   * Reglas recurrentes. `next_dates` lo calcula el backend, así que el doble
+   * lo devuelve fijo: duplicar acá la aritmética de calendario sería tener dos
+   * fuentes de verdad, que es justo lo que el diseño evita.
+   */
+  http.get(`${BASE}/recurring-rules/upcoming`, () => HttpResponse.json(store.vencimientos)),
+
+  http.get(`${BASE}/recurring-rules`, ({ request }) => {
+    const activas = new URL(request.url).searchParams.get('is_active')
+    if (activas === null) return HttpResponse.json(store.reglas)
+    const esperado = activas === 'true'
+    return HttpResponse.json(store.reglas.filter((r) => r.is_active === esperado))
+  }),
+
+  http.post(`${BASE}/recurring-rules`, async ({ request }) => {
+    const cuerpo = (await request.json()) as Partial<RecurringRule>
+    const creada: RecurringRule = {
+      id: nuevoId(),
+      category_id: cuerpo.category_id ?? 0,
+      type: cuerpo.type ?? 'EXPENSE',
+      amount: cuerpo.amount ?? '0.00',
+      currency: 'ARS',
+      description: cuerpo.description ?? '',
+      frequency: cuerpo.frequency ?? 'MONTHLY',
+      day_of_month: cuerpo.day_of_month ?? null,
+      day_of_week: cuerpo.day_of_week ?? null,
+      starts_on: cuerpo.starts_on ?? '2026-08-01',
+      ends_on: cuerpo.ends_on ?? null,
+      is_active: true,
+      next_dates: ['2026-09-10', '2026-10-10', '2026-11-10'],
+    }
+    store.reglas.push(creada)
+    return HttpResponse.json(creada, { status: 201 })
+  }),
+
+  http.patch(`${BASE}/recurring-rules/:id`, async ({ params, request }) => {
+    const cuerpo = (await request.json()) as Partial<RecurringRule>
+    const regla = store.reglas.find((r) => r.id === Number(params.id))
+    if (!regla) return new HttpResponse(null, { status: 404 })
+    Object.assign(regla, cuerpo)
+    // Una regla pausada no proyecta: el backend devuelve `next_dates` vacío.
+    regla.next_dates = regla.is_active ? ['2026-09-10', '2026-10-10', '2026-11-10'] : []
+    return HttpResponse.json(regla)
+  }),
+
+  http.delete(`${BASE}/recurring-rules/:id`, ({ params }) => {
+    store.reglas = store.reglas.filter((r) => r.id !== Number(params.id))
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.get(`${BASE}/recurring-rules/:id/occurrences`, ({ params }) =>
+    HttpResponse.json(store.ocurrencias[Number(params.id)] ?? []),
+  ),
 
   /*
    * Asistente. Guarda las dos puntas de la conversación igual que el backend,
