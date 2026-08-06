@@ -5,6 +5,7 @@ import type {
   BudgetProgress,
   Category,
   CategoryBreakdown,
+  ChatMessage,
   MonthlyTrend,
   PeriodSummary,
   TokenResponse,
@@ -54,6 +55,8 @@ interface Store {
   desglose: CategoryBreakdown
   tendencia: MonthlyTrend
   progreso: BudgetProgress
+  /** Mensajes del asistente, indexados por `conversation_id`. */
+  conversaciones: Record<string, ChatMessage[]>
 }
 
 function estadoInicial(): Store {
@@ -146,6 +149,7 @@ function estadoInicial(): Store {
       unbudgeted: [{ category_id: 22, category_name: 'Transporte', spent: '40000.00' }],
       exceeded_count: 1,
     },
+    conversaciones: {},
   }
 }
 
@@ -361,5 +365,36 @@ export const handlers = [
       },
       { status: 201 },
     )
+  }),
+
+  /*
+   * Asistente. Guarda las dos puntas de la conversación igual que el backend,
+   * para que un test pueda mandar un mensaje, recargar y verificar que el
+   * historial lo devuelve.
+   */
+  http.post(`${BASE}/chat`, async ({ request }) => {
+    const cuerpo = (await request.json()) as { message: string; conversation_id?: string }
+    const conversacion = cuerpo.conversation_id ?? `conv-${nuevoId()}`
+    // La respuesta no repite la consulta a propósito: si la contuviera, una
+    // aserción sobre el texto de la pregunta encontraría dos elementos y no se
+    // podría distinguir la burbuja propia de la del asistente.
+    const respuesta = 'Gastaste 450.000,50 ARS este mes.'
+
+    store.conversaciones[conversacion] = [
+      ...(store.conversaciones[conversacion] ?? []),
+      { role: 'USER', content: cuerpo.message, created_at: '2026-08-05T14:30:00' },
+      { role: 'ASSISTANT', content: respuesta, created_at: '2026-08-05T14:30:02' },
+    ]
+
+    return HttpResponse.json({
+      conversation_id: conversacion,
+      content: respuesta,
+      degraded: false,
+    })
+  }),
+
+  http.get(`${BASE}/chat/history`, ({ request }) => {
+    const conversacion = new URL(request.url).searchParams.get('conversation_id') ?? ''
+    return HttpResponse.json(store.conversaciones[conversacion] ?? [])
   }),
 ]

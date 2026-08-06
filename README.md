@@ -176,6 +176,11 @@ Consecuencias operativas de esas decisiones:
   vuelve detectable y la ventana se acota— y porque el access token, que es el que
   abre todos los endpoints, nunca se persiste: cerrar la pestaña lo borra. Migrar a
   cookies `httpOnly` queda como mejora pendiente.
+- La **conversación abierta del asistente** se guarda en `sessionStorage`, no en
+  `localStorage`: pertenece a la pestaña en la que se está hablando. Se borra junto con
+  la sesión, así que si en la misma pestaña entra otra persona no hereda el hilo. Aun si
+  quedara, el backend filtra por `user_id` y devolvería vacío: el identificador de
+  conversación no es una credencial.
 - La API key de OpenAI vive solo en el backend, por variable de entorno.
 - Nunca se loguean tokens, contraseñas, prompts del usuario ni montos junto a un email.
 - `.env` está en `.gitignore`. En el repo solo hay `.env.example` con valores dummy.
@@ -196,7 +201,7 @@ Plan de 14 fases (detalle en `docs/PROMPT.md` §18).
 - [x] **Fase 8 — Frontend base**: routing con guards, cliente HTTP con refresh, formateo es-AR, login y registro
 - [x] **Fase 9 — Frontend features**: dashboard con gráficos, movimientos con filtros, ABM de categorías, presupuestos y reportes
 - [x] **Fase 10 — Asistente LangChain**: agente con 7 tools de `user_id` cerrado, contexto temporal resuelto en el backend, cupo por hora y telemetría de tokens
-- [ ] Fase 11 — Frontend chat
+- [x] **Fase 11 — Frontend chat**: conversación con historial, indicador de escritura, sugerencias de arranque, reintento ante respuesta degradada y aviso de cupo
 - [ ] Fase 12 — Recurrentes (backend)
 - [ ] Fase 13 — Frontend recurrentes
 - [ ] Fase 14 — Cierre

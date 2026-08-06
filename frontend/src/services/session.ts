@@ -16,6 +16,14 @@
 import type { TokenResponse } from '@/types/api'
 
 const CLAVE_REFRESH = 'gfp.refresh_token'
+/**
+ * Conversación abierta del asistente.
+ *
+ * Va en `sessionStorage` y no en `localStorage`: una conversación pertenece a
+ * la pestaña en la que se está hablando, y persistirla para siempre haría que
+ * meses después se siguiera escribiendo en el mismo hilo.
+ */
+const CLAVE_CONVERSACION = 'gfp.conversation_id'
 
 let accessToken: string | null = null
 
@@ -42,6 +50,31 @@ export function saveSession(tokens: TokenResponse): void {
   }
 }
 
+export function getConversationId(): string | null {
+  try {
+    return sessionStorage.getItem(CLAVE_CONVERSACION)
+  } catch {
+    return null
+  }
+}
+
+export function saveConversationId(id: string): void {
+  try {
+    sessionStorage.setItem(CLAVE_CONVERSACION, id)
+  } catch {
+    // Sin persistencia el hilo dura lo que dure la pantalla montada, que es
+    // degradado pero usable.
+  }
+}
+
+export function clearConversationId(): void {
+  try {
+    sessionStorage.removeItem(CLAVE_CONVERSACION)
+  } catch {
+    // Nada que hacer.
+  }
+}
+
 export function clearSession(): void {
   accessToken = null
   try {
@@ -49,6 +82,11 @@ export function clearSession(): void {
   } catch {
     // Nada que hacer.
   }
+  // La conversación se borra junto con la sesión: si en la misma pestaña
+  // entra otra persona, el identificador guardado sería de un hilo ajeno.
+  // El backend igual devolvería vacío —filtra por `user_id`—, pero dos
+  // usuarios compartiendo un `conversation_id` es una confusión evitable.
+  clearConversationId()
 }
 
 export function hasStoredSession(): boolean {

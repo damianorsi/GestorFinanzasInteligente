@@ -30,6 +30,14 @@ export default defineConfig({
     globals: true,
     setupFiles: './src/setupTests.ts',
     css: false,
+    /*
+     * Los 5 segundos por defecto quedan justos: cada test monta la aplicación
+     * entera y espera a MSW y a React Query, y los archivos corren en paralelo.
+     * En una máquina cargada eso da timeouts que no son un bug del código sino
+     * de la máquina. Subirlo no esconde fallas: una aserción rota sigue
+     * fallando, solo que más tarde.
+     */
+    testTimeout: 15_000,
     coverage: {
       reporter: ['text', 'lcov'],
       exclude: ['src/main.tsx', '**/*.d.ts'],

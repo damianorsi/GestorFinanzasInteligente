@@ -9,6 +9,7 @@
 
 export type TransactionType = 'INCOME' | 'EXPENSE'
 export type BudgetStatus = 'OK' | 'WARNING' | 'EXCEEDED'
+export type ChatRole = 'USER' | 'ASSISTANT'
 
 /** Contrato de error: `code` estable en inglés, `message` en español. */
 export interface ApiErrorBody {
@@ -126,4 +127,22 @@ export interface BudgetProgress {
   entries: BudgetProgressEntry[]
   unbudgeted: UnbudgetedSpending[]
   exceeded_count: number
+}
+
+export interface ChatMessage {
+  role: ChatRole
+  content: string
+  /** ISO con hora, en UTC: es un timestamp de auditoría, no una fecha de negocio. */
+  created_at: string
+}
+
+export interface ChatAnswer {
+  conversation_id: string
+  content: string
+  /**
+   * `true` cuando la respuesta es de fallback: el proveedor falló o el agente
+   * no convergió. Sirve para ofrecer reintentar en vez de tomarla como un "no
+   * sé" real del asistente.
+   */
+  degraded: boolean
 }

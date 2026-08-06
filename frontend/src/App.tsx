@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout } from '@/layout/AppLayout'
 import { BudgetsPage } from '@/pages/BudgetsPage'
 import { CategoriesPage } from '@/pages/CategoriesPage'
+import { ChatPage } from '@/pages/ChatPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { EnConstruccionPage } from '@/pages/EnConstruccionPage'
 import { LoginPage } from '@/pages/LoginPage'
@@ -33,10 +34,7 @@ export function App() {
             path="/recurring"
             element={<EnConstruccionPage titulo="Movimientos recurrentes" fase="fase 13" />}
           />
-          <Route
-            path="/chat"
-            element={<EnConstruccionPage titulo="Asistente" fase="fase 11" />}
-          />
+          <Route path="/chat" element={<ChatPage />} />
         </Route>
       </Route>
 
