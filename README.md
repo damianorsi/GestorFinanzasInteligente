@@ -31,6 +31,10 @@ del usuario.
 > **¿Primera vez?** La [guía de instalación](docs/INSTALACION.md) tiene el paso a paso
 > completo: versiones exactas, qué configurar en `.env`, cómo verificar que quedó bien y
 > qué hacer cuando algo falla. Lo de acá abajo es el resumen.
+>
+> **¿Exponerlo para que otros lo prueben?** Ver [despliegue](docs/DESPLIEGUE.md). El
+> `docker-compose.yml` de desarrollo **no se expone**: publica MySQL en el host. Para eso
+> está `docker-compose.prod.yml`.
 
 ### Requisitos
 

@@ -320,6 +320,9 @@ Sin `-v` el volumen sobrevive y los datos quedan.
 
 ## 8. Documentación relacionada
 
+- [`docs/DESPLIEGUE.md`](DESPLIEGUE.md) — cómo exponer la aplicación para que otras
+  personas la prueben. **El `docker-compose.yml` de este documento no se expone**: publica
+  MySQL en el host.
 - [`README.md`](../README.md) — arquitectura, decisiones cerradas, seguridad y notas
   operativas (scheduler, consumo de tokens, roadmap de USD).
 - [`docs/PROMPT.md`](PROMPT.md) — especificación completa del proyecto. Ante duda o

@@ -1,0 +1,92 @@
+# =============================================================================
+# Stack para exponer la aplicación (demo o producción chica).
+#
+# Se usa EN LUGAR de docker-compose.yml, no como override:
+#
+#     docker compose -f docker-compose.prod.yml up -d --build
+#
+# Motivo: compose **agrega** a las listas de `ports` y `volumes` al mergear
+# archivos, no las reemplaza. Un override no podría quitar el 3306 que el
+# archivo de desarrollo publica al host, que es justo lo que no puede quedar
+# expuesto. Con un archivo aparte no hay forma de heredarlo por accidente.
+#
+# Comparte el nombre de proyecto y el volumen con el de desarrollo, así que
+# levanta sobre los mismos datos. Los dos stacks no corren a la vez.
+# =============================================================================
+
+name: gestor-finanzas-personales
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: gfp-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?definir en .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-finanzas}
+      MYSQL_USER: ${MYSQL_USER:-finanzas}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?definir en .env}
+      TZ: ${APP_TIMEZONE:-America/Argentina/Buenos_Aires}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+00:00
+    # SIN `ports`. La base solo se alcanza desde la red interna de compose.
+    # Publicarla en un host expuesto a internet es dejar MySQL abierto al mundo.
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  backend:
+    build:
+      context: ./backend
+      # `runtime`: imagen sin toolchain de build y proceso como usuario no-root.
+      target: runtime
+    container_name: gfp-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TZ: ${APP_TIMEZONE:-America/Argentina/Buenos_Aires}
+      # Pisa lo que diga .env. En este modo la aplicación se niega a arrancar
+      # con el JWT_SECRET_KEY de ejemplo o con Argon2 por debajo del mínimo.
+      APP_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+    # SIN `ports` y SIN montajes de código: la imagen es inmutable y el backend
+    # solo se alcanza a través del proxy del frontend. Como consecuencia,
+    # /docs y /openapi.json tampoco quedan expuestos.
+    #
+    # UN SOLO WORKER, no es negociable: el job de recurrentes corre in-process
+    # y con dos workers habría dos schedulers disparando el mismo job.
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).status == 200 else 1)"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: /api/v1
+    container_name: gfp-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      # Solo loopback: quien publica hacia afuera es el túnel, que corre en
+      # esta misma máquina. Sin el `127.0.0.1` la aplicación quedaría además
+      # accesible desde toda la red local.
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:80"
+
+volumes:
+  db_data:
