@@ -208,7 +208,7 @@ Plan de 14 fases (detalle en `docs/PROMPT.md` §18).
 - [x] **Fase 10 — Asistente LangChain**: agente con 7 tools de `user_id` cerrado, contexto temporal resuelto en el backend, cupo por hora y telemetría de tokens
 - [x] **Fase 11 — Frontend chat**: conversación con historial, indicador de escritura, sugerencias de arranque, reintento ante respuesta degradada y aviso de cupo
 - [x] **Fase 12 — Recurrentes (backend)**: ABM de reglas, proyección de vencimientos, job idempotente con catch-up acotado y scheduler reportado en `/health`
-- [ ] Fase 13 — Frontend recurrentes
+- [x] **Fase 13 — Frontend recurrentes**: ABM de reglas con las próximas fechas a la vista, pausa/reactivación, historial de ocurrencias y vencimientos proyectados en el dashboard
 - [ ] Fase 14 — Cierre
 
 ---
@@ -266,6 +266,12 @@ Dos comportamientos que suelen sorprender, y son a propósito:
 El catch-up está acotado a `RECURRING_CATCHUP_MAX_DAYS` (default 90) y loguea un warning
 cuando recorta, para que un contenedor apagado ocho meses no inyecte cientos de
 movimientos de golpe.
+
+**La aritmética de calendario vive solo en el backend.** El frontend muestra las próximas
+fechas que devuelve la API (`next_dates`) en vez de calcularlas: replicarlas en
+TypeScript sería una segunda implementación del mismo calendario, y el día que difieran
+—el ajuste del 31 en los meses cortos es el candidato obvio— la pantalla mostraría una
+fecha y el job generaría otra.
 
 ### Asistente: guardrails
 

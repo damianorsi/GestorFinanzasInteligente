@@ -13,8 +13,12 @@ import {
   useResumen,
   useTendenciaMensual,
 } from '@/features/reports/api'
+import { useProximosVencimientos } from '@/features/recurring/api'
 import { formatDate, formatMoney, isNegative } from '@/utils/format'
 import { periodoActual } from '@/utils/periods'
+
+/** El dashboard resume: la lista completa está en la pantalla de recurrentes. */
+const MAXIMO_EN_EL_DASHBOARD = 5
 
 export function DashboardPage() {
   const { usuario } = useAuth()
@@ -22,6 +26,7 @@ export function DashboardPage() {
   const desglose = useDesglosePorCategoria()
   const tendencia = useTendenciaMensual(6)
   const avance = useAvanceDePresupuestos(periodoActual())
+  const vencimientos = useProximosVencimientos(30)
 
   const gastos = (desglose.data?.entries ?? []).filter((e) => e.type === 'EXPENSE')
 
@@ -98,6 +103,42 @@ export function DashboardPage() {
           moneda={desglose.data.currency}
           titulo="Gastos por categoría"
         />
+      )}
+
+      {vencimientos.isSuccess && vencimientos.data.entries.length > 0 && (
+        <div className="grupo">
+          <h2>Próximos vencimientos</h2>
+          {/*
+            Se aclara que son proyecciones porque no están en el balance de
+            arriba: sin la aclaración, la diferencia parece un error de cuentas.
+          */}
+          <p className="pagina__subtitulo">
+            Proyección de lo que las reglas van a generar hasta el{' '}
+            {formatDate(vencimientos.data.date_to)}. Todavía no forman parte del balance.
+          </p>
+          <ul className="lista">
+            {vencimientos.data.entries.slice(0, MAXIMO_EN_EL_DASHBOARD).map((entrada) => (
+              <li key={`${entrada.rule_id}-${entrada.due_on}`} className="lista__item">
+                <span className="lista__nombre">
+                  {formatDate(entrada.due_on)} · {entrada.description || 'sin descripción'}
+                </span>
+                <span
+                  className={
+                    entrada.type === 'INCOME'
+                      ? 'tabla__numero tabla__numero--positivo'
+                      : 'tabla__numero tabla__numero--negativo'
+                  }
+                >
+                  {formatMoney(entrada.amount, entrada.currency)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="pagina__subtitulo">
+            Total proyectado: {formatMoney(vencimientos.data.projected_expense, vencimientos.data.currency)}{' '}
+            en gastos. <Link to="/recurring">Ver las reglas</Link>
+          </p>
+        </div>
       )}
 
       {tendencia.isSuccess && (
