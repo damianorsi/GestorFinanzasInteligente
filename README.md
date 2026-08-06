@@ -209,7 +209,37 @@ Plan de 14 fases (detalle en `docs/PROMPT.md` §18).
 - [x] **Fase 11 — Frontend chat**: conversación con historial, indicador de escritura, sugerencias de arranque, reintento ante respuesta degradada y aviso de cupo
 - [x] **Fase 12 — Recurrentes (backend)**: ABM de reglas, proyección de vencimientos, job idempotente con catch-up acotado y scheduler reportado en `/health`
 - [x] **Fase 13 — Frontend recurrentes**: ABM de reglas con las próximas fechas a la vista, pausa/reactivación, historial de ocurrencias y vencimientos proyectados en el dashboard
-- [ ] Fase 14 — Cierre
+- [x] **Fase 14 — Cierre**: README, revisión de la OpenAPI y verificación end-to-end desde cero
+
+Las 14 fases están cerradas y los 12 casos de uso de `docs/PROMPT.md` §17 tienen tests
+que los respaldan.
+
+### Verificación de cierre
+
+Con el stack levantado desde cero (`docker compose down -v` y `docker compose up --build`):
+
+| Qué se verificó | Resultado |
+|---|---|
+| Los tres contenedores arrancan sanos y las migraciones corren solas | ok |
+| OpenAPI: 34 operaciones, ninguna sin `summary`, seguridad declarada salvo en los 4 endpoints públicos y `/health` | ok |
+| Recorrido de los 12 casos de uso por HTTP contra la base recién creada | ok |
+| Aislamiento multiusuario: recurso ajeno → 404, listados sin datos de terceros | ok |
+| Export CSV: `text/csv`, `attachment` y BOM UTF-8 verificado a nivel de bytes | ok |
+| Backend: ruff, formato, mypy y 623 tests | verde |
+| Frontend: eslint, tsc, build y 106 tests | verde |
+
+### Pendientes conocidos
+
+Nada de esto bloquea el uso, pero conviene tenerlo a la vista:
+
+- **`OPENAI_API_KEY` es un valor dummy.** Hasta cargar una clave real, el asistente
+  responde siempre con `degraded: true` y el mensaje de fallback. Todo lo demás funciona.
+- **Una sola réplica del backend.** Con más de una hace falta un lock distribuido para el
+  job de recurrentes (ver *Scheduler y réplicas*).
+- **Sesión en `localStorage`.** Migrar a cookies `httpOnly` queda pendiente; el trade-off
+  está documentado en *Seguridad*.
+- **USD no está habilitado.** El esquema y el dominio están listos; falta cerrar la
+  pregunta del tipo de cambio (ver *Roadmap: habilitar USD*).
 
 ---
 
