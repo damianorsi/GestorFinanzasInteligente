@@ -92,6 +92,11 @@ solo, agregándole `_test` al de `DATABASE_URL`, así que no depende de que nadi
 se acuerde de setear una variable. La base la crea `db/init/` la primera vez que
 se inicializa el volumen de MySQL.
 
+> **Sobre el coverage de los repositorios**: aparece más bajo de lo que es. SQLAlchemy
+> async usa greenlets para puentear sync/async, y coverage.py pierde el rastro de las
+> líneas que siguen a un `await` dentro del mismo frame. Los tests de integración sí
+> ejercitan ese código; no hace falta escribir tests redundantes para "subirlo".
+
 ### Frontend
 
 ```bash
@@ -202,7 +207,7 @@ Plan de 14 fases (detalle en `docs/PROMPT.md` §18).
 - [x] **Fase 9 — Frontend features**: dashboard con gráficos, movimientos con filtros, ABM de categorías, presupuestos y reportes
 - [x] **Fase 10 — Asistente LangChain**: agente con 7 tools de `user_id` cerrado, contexto temporal resuelto en el backend, cupo por hora y telemetría de tokens
 - [x] **Fase 11 — Frontend chat**: conversación con historial, indicador de escritura, sugerencias de arranque, reintento ante respuesta degradada y aviso de cupo
-- [ ] Fase 12 — Recurrentes (backend)
+- [x] **Fase 12 — Recurrentes (backend)**: ABM de reglas, proyección de vencimientos, job idempotente con catch-up acotado y scheduler reportado en `/health`
 - [ ] Fase 13 — Frontend recurrentes
 - [ ] Fase 14 — Cierre
 
@@ -224,13 +229,43 @@ en el repositorio**: el token de GitHub se pasa por variable de entorno.
 
 ### Scheduler y réplicas
 
-El job de movimientos recurrentes corre in-process con APScheduler. La idempotencia
-está garantizada por la constraint `UNIQUE (rule_id, occurred_on)` de
-`recurring_occurrences`, así que **con una sola réplica del backend alcanza**.
+El job de movimientos recurrentes corre in-process con APScheduler, todos los días a
+`RECURRING_JOB_HOUR` en `APP_TIMEZONE`. La idempotencia está garantizada por la
+constraint `UNIQUE (rule_id, occurred_on)` de `recurring_occurrences`, así que **con una
+sola réplica del backend alcanza**.
 
 Si en algún momento se escala a varias réplicas, hace falta un lock distribuido: sin
 eso, cada réplica dispararía su propio job. La UNIQUE evitaría los duplicados, pero
 generaría ruido de `IntegrityError` en los logs.
+
+`GET /health` informa el estado del scheduler **de ese proceso**: `disabled` (no
+arrancó, el caso del entorno de test), `pending` (arrancó y todavía no corrió), `ok` o
+`error`, más la fecha de la última corrida.
+
+### Reglas del job de recurrentes
+
+Tres invariantes que no se pueden romper, y que están cubiertas por tests:
+
+1. **Nunca se materializa el futuro.** Solo se generan fechas `<= hoy`. Los vencimientos
+   posteriores existen únicamente como proyección en `GET /recurring-rules/upcoming`, y
+   **no participan del balance, de los reportes ni del export CSV**.
+2. **Correrlo cincuenta veces seguidas genera lo mismo que correrlo una.**
+3. **Una regla que falla no voltea a las demás.** Si una quedó apuntando a una categoría
+   que ya no existe, se desactiva y se loguea; el resto se genera igual.
+
+Dos comportamientos que suelen sorprender, y son a propósito:
+
+- **Borrar un movimiento generado no lo hace reaparecer.** El `DELETE` marca la
+  ocurrencia como `SKIPPED` en el libro mayor en vez de borrar la fila. Si el alquiler
+  que borraste vuelve al otro día, el libro mayor está mal implementado.
+- **Reactivar una regla pausada no dispara backfill.** Al reactivarla, las fechas del
+  período de pausa se anotan como `SKIPPED`. Pausar es decidir no generar, no diferir:
+  sin esto, reactivar una regla pausada tres meses inyectaría tres meses de movimientos
+  que nunca ocurrieron.
+
+El catch-up está acotado a `RECURRING_CATCHUP_MAX_DAYS` (default 90) y loguea un warning
+cuando recorta, para que un contenedor apagado ocho meses no inyecte cientos de
+movimientos de golpe.
 
 ### Asistente: guardrails
 

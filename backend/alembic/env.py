@@ -20,7 +20,13 @@ from app.infrastructure.db.base import Base
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # `disable_existing_loggers=False` es obligatorio: el default de
+    # `fileConfig` es True y apaga TODOS los loggers ya creados que no estén
+    # nombrados en el ini, o sea todo `app.*`. Corriendo las migraciones en el
+    # mismo proceso que la aplicación —el caso de la suite de tests, y de
+    # cualquiera que llame a Alembic desde Python— eso deja la aplicación sin
+    # logs desde ahí en adelante, sin un solo error que lo delate.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # ConfigParser interpreta `%` como interpolación: si la contraseña de la base
 # tiene un `%`, sin escapar esto revienta con InterpolationSyntaxError.

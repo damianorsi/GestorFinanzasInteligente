@@ -28,6 +28,9 @@ dependencies = [
     # falla con "cryptography package is required".
     "cryptography>=43.0",
     "alembic>=1.14",
+    # Job de movimientos recurrentes, in-process. Con una sola réplica alcanza:
+    # la idempotencia la garantiza la UNIQUE de `recurring_occurrences`.
+    "apscheduler>=3.11,<4",
     # Asistente conversacional. `langchain-openai` trae el cliente del modelo y
     # `langchain` el agente con tool calling.
     # El major va acotado a propósito: `create_agent` y `ModelCallLimitMiddleware`
@@ -96,7 +99,8 @@ plugins = ["pydantic.mypy"]
 exclude = ["alembic/versions"]
 
 [[tool.mypy.overrides]]
-module = ["aiomysql.*"]
+# Sin `py.typed`: no publican tipos y no hay stubs oficiales.
+module = ["aiomysql.*", "apscheduler.*"]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------------------
