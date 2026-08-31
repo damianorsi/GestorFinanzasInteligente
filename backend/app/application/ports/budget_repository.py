@@ -40,3 +40,12 @@ class BudgetRepository(Protocol):
     ) -> bool:
         """Si ya hay un presupuesto para esa categoría, período y moneda."""
         ...
+
+    async def list_user_ids_with_budgets(self, period_month: date, currency: str) -> list[int]:
+        """Usuarios con al menos un presupuesto en ese mes, **para el job**.
+
+        Sin `user_id` por la misma razón que `list_all_active` de las reglas
+        recurrentes: el job no atiende un request y no hay usuario autenticado
+        del que sacarlo. No debe usarse desde ningún endpoint (§8).
+        """
+        ...

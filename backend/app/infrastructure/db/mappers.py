@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from app.domain.entities import (
     Budget,
+    BudgetAlert,
     Category,
     RecurringOccurrence,
     RecurringRule,
@@ -20,6 +21,7 @@ from app.domain.entities import (
 )
 from app.domain.value_objects import Money
 from app.infrastructure.db.models import (
+    BudgetAlertModel,
     BudgetModel,
     CategoryModel,
     RecurringOccurrenceModel,
@@ -170,4 +172,32 @@ def ocurrencia_a_modelo(entity: RecurringOccurrence) -> RecurringOccurrenceModel
         occurred_on=entity.occurred_on,
         status=entity.status,
         transaction_id=entity.transaction_id,
+    )
+
+
+# --- Alertas de presupuesto ------------------------------------------------
+def alerta_a_dominio(model: BudgetAlertModel) -> BudgetAlert:
+    return BudgetAlert(
+        id=model.id,
+        user_id=model.user_id,
+        category_id=model.category_id,
+        period_month=model.period_month,
+        type=model.type,
+        message=model.message,
+        status=model.status,
+        recommendation=model.recommendation,
+        projected_percentage=model.projected_percentage,
+    )
+
+
+def alerta_a_modelo(entity: BudgetAlert) -> BudgetAlertModel:
+    return BudgetAlertModel(
+        user_id=entity.user_id,
+        category_id=entity.category_id,
+        period_month=entity.period_month,
+        type=entity.type,
+        message=entity.message,
+        status=entity.status,
+        recommendation=entity.recommendation,
+        projected_percentage=entity.projected_percentage,
     )

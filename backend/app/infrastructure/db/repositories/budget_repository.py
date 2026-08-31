@@ -93,3 +93,16 @@ class SqlAlchemyBudgetRepository:
         if exclude_id is not None:
             consulta = consulta.where(BudgetModel.id != exclude_id)
         return bool(await self._session.scalar(consulta))
+
+    async def list_user_ids_with_budgets(self, period_month: date, currency: str) -> list[int]:
+        """Sin `user_id`: la usa el job. Ver el porqué en el puerto."""
+        ids = await self._session.scalars(
+            select(BudgetModel.user_id)
+            .where(
+                BudgetModel.period_month == period_month,
+                BudgetModel.currency == currency,
+            )
+            .distinct()
+            .order_by(BudgetModel.user_id)
+        )
+        return list(ids.all())

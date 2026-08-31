@@ -28,6 +28,7 @@ from app.application.dtos import (
 )
 from app.domain.entities import (
     Budget,
+    BudgetAlert,
     Category,
     RecurringOccurrence,
     RecurringRule,
@@ -35,6 +36,8 @@ from app.domain.entities import (
     User,
 )
 from app.domain.enums import (
+    AlertStatus,
+    AlertType,
     ChatRole,
     OccurrenceStatus,
     ReceiptScanStatus,
@@ -236,10 +239,107 @@ class FakeTransactionRepository:
         )
 
 
+class FakeBudgetAlertRepository:
+    """Libro de alertas en memoria, con la misma unicidad que la tabla.
+
+    La clave es `(user_id, category_id, period_month, type)`, que es la UNIQUE
+    real: así el fake no puede aceptar un duplicado que la base rechazaría.
+    """
+
+    def __init__(self) -> None:
+        self.alertas: list[BudgetAlert] = []
+        # Para el test de aislamiento de fallos: hace explotar el repositorio
+        # cuando el job procesa a este usuario.
+        self.fallar_para_usuario: int | None = None
+        self._siguiente_id = 1
+
+    def _clave(self, alerta: BudgetAlert) -> tuple[int, int, date, AlertType]:
+        return (alerta.user_id, alerta.category_id, alerta.period_month, alerta.type)
+
+    async def list_for_user(
+        self, user_id: int, status: AlertStatus | None = None
+    ) -> list[BudgetAlert]:
+        if self.fallar_para_usuario == user_id:
+            raise RuntimeError("la base dijo que no")
+        return [
+            alerta
+            for alerta in self.alertas
+            if alerta.user_id == user_id and (status is None or alerta.status is status)
+        ]
+
+    async def get_for_user(self, user_id: int, alert_id: int) -> BudgetAlert | None:
+        return next(
+            (a for a in self.alertas if a.id == alert_id and a.user_id == user_id),
+            None,
+        )
+
+    async def update(self, alert: BudgetAlert) -> BudgetAlert:
+        for indice, existente in enumerate(self.alertas):
+            if existente.id == alert.id:
+                self.alertas[indice] = alert
+                return alert
+        raise ValueError(f"La alerta {alert.id} no existe.")
+
+    async def create_if_absent(self, alert: BudgetAlert) -> BudgetAlert | None:
+        if self.fallar_para_usuario == alert.user_id:
+            raise RuntimeError("la base dijo que no")
+        if any(self._clave(a) == self._clave(alert) for a in self.alertas):
+            return None
+        self._siguiente_id += 1
+        alert.id = self._siguiente_id
+        self.alertas.append(alert)
+        return alert
+
+    async def resolve_stale(self, user_id: int, period_month: date, vigentes: set[int]) -> int:
+        resueltas = 0
+        for alerta in self.alertas:
+            if (
+                alerta.user_id == user_id
+                and alerta.period_month == period_month
+                and alerta.status in (AlertStatus.OPEN, AlertStatus.READ)
+                and alerta.id not in vigentes
+            ):
+                alerta.status = AlertStatus.RESOLVED
+                resueltas += 1
+        return resueltas
+
+    async def list_open_period_ids(self, user_id: int, period_month: date) -> set[int]:
+        return {
+            alerta.id or 0
+            for alerta in self.alertas
+            if alerta.user_id == user_id
+            and alerta.period_month == period_month
+            and alerta.status in (AlertStatus.OPEN, AlertStatus.READ)
+        }
+
+
 class FakeBudgetRepository:
     def __init__(self) -> None:
         self.presupuestos: dict[int, Budget] = {}
+        # Lo que devuelve la consulta del job. Por defecto se deriva de los
+        # presupuestos cargados.
+        self.usuarios_con_presupuesto: list[int] | None = None
         self._siguiente_id = 1
+
+    def agregar(self, budget: Budget) -> Budget:
+        """Siembra un presupuesto sin pasar por el caso de uso."""
+        if budget.id is None:
+            budget.id = self._siguiente_id
+            self._siguiente_id += 1
+        self.presupuestos[budget.id] = budget
+        return budget
+
+    async def list_user_ids_with_budgets(self, period_month: date, currency: str) -> list[int]:
+        if self.usuarios_con_presupuesto is not None:
+            return self.usuarios_con_presupuesto
+        return sorted(
+            {
+                presupuesto.user_id
+                for presupuesto in self.presupuestos.values()
+                if presupuesto.period_month == period_month
+                and presupuesto.limit.currency == currency
+            }
+        )
 
     async def create(self, budget: Budget) -> Budget:
         budget.id = self._siguiente_id

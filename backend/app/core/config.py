@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from functools import lru_cache
 from zoneinfo import ZoneInfo
 
@@ -82,6 +83,16 @@ class Settings(BaseSettings):
     # --- Movimientos recurrentes -------------------------------------------
     recurring_job_hour: int = 3
     recurring_catchup_max_days: int = 90
+
+    # --- Alertas proactivas (docs/PROMPT.md §21.2) -------------------------
+    # Después del job de recurrentes: los movimientos que ese genera cuentan
+    # para el presupuesto, y correr antes avisaría sobre un gasto incompleto.
+    alerts_job_hour: int = 4
+    # Gasto mínimo en una categoría sin tope para que valga la pena avisar.
+    alerts_min_unbudgeted_amount: Decimal = Decimal("10000")
+    # Tope de recomendaciones por corrida: cada una es una corrida completa
+    # del agente, y sin techo el job podría gastar sin control.
+    alerts_max_recommendations: int = 20
 
     # --- Localización (decisiones cerradas, ver docs/PROMPT.md §5) ----------
     app_timezone: str = "America/Argentina/Buenos_Aires"

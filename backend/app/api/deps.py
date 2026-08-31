@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.dtos import TokenType
 from app.application.exceptions import InvalidTokenError
 from app.application.ports import (
+    BudgetAlertRepository,
     BudgetRepository,
     CategoryRepository,
     ChatAgent,
@@ -33,6 +34,7 @@ from app.application.ports import (
     TransactionRepository,
     UserRepository,
 )
+from app.application.use_cases.alerts import ListAlerts, MarkAlertRead
 from app.application.use_cases.auth.login_user import LoginUser
 from app.application.use_cases.auth.logout_user import LogoutUser
 from app.application.use_cases.auth.refresh_tokens import RefreshTokens
@@ -84,6 +86,7 @@ from app.infrastructure.assistant import (
 )
 from app.infrastructure.clock import get_clock
 from app.infrastructure.db.repositories import (
+    SqlAlchemyBudgetAlertRepository,
     SqlAlchemyBudgetRepository,
     SqlAlchemyCategoryRepository,
     SqlAlchemyChatRepository,
@@ -414,6 +417,22 @@ def get_ask_assistant(
 
 def get_chat_history(chat: Chats, settings: AppSettings) -> GetChatHistory:
     return GetChatHistory(chat, settings.chat_history_window)
+
+
+# --- Alertas ---------------------------------------------------------------
+def get_alert_repository(session: DbSession) -> BudgetAlertRepository:
+    return SqlAlchemyBudgetAlertRepository(session)
+
+
+Alerts = Annotated[BudgetAlertRepository, Depends(get_alert_repository)]
+
+
+def get_list_alerts(alerts: Alerts) -> ListAlerts:
+    return ListAlerts(alerts)
+
+
+def get_mark_alert_read(alerts: Alerts) -> MarkAlertRead:
+    return MarkAlertRead(alerts)
 
 
 # --- Lectura de tickets ----------------------------------------------------

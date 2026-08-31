@@ -40,6 +40,8 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.domain.enums import (
+    AlertStatus,
+    AlertType,
     ChatRole,
     OccurrenceStatus,
     ReceiptScanStatus,
@@ -343,6 +345,47 @@ class ChatUsageModel(Base):
 
 
 # ---------------------------------------------------------------------------
+# Alertas de presupuesto
+# ---------------------------------------------------------------------------
+class BudgetAlertModel(TimestampMixin, Base):
+    """Desvío presupuestario detectado por el job.
+
+    La UNIQUE `(user_id, category_id, period_month, type)` es la garantía de
+    idempotencia: sin ella, el job emitiría la misma alerta todos los días
+    (docs/PROMPT.md §21.2).
+    """
+
+    __tablename__ = "budget_alerts"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "category_id",
+            "period_month",
+            "type",
+            name="uq_budget_alerts_user_category_period_type",
+        ),
+        Index("ix_budget_alerts_user_status", "user_id", "status"),
+        _OPCIONES_MYSQL,
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    category_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False
+    )
+    period_month: Mapped[date] = mapped_column(Date, nullable=False)
+    type: Mapped[AlertType] = mapped_column(_enum(AlertType, "alert_type"), nullable=False)
+    status: Mapped[AlertStatus] = mapped_column(_enum(AlertStatus, "alert_status"), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    # Nullable: la redacta el agente, y si el proveedor no responde la alerta
+    # se emite igual.
+    recommendation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    projected_percentage: Mapped[Decimal | None] = mapped_column(Numeric(7, 2), nullable=True)
+
+
+# ---------------------------------------------------------------------------
 # Lectura de tickets
 # ---------------------------------------------------------------------------
 class ReceiptScanModel(Base):
@@ -391,6 +434,7 @@ class ReceiptScanModel(Base):
 
 
 __all__ = [
+    "BudgetAlertModel",
     "BudgetModel",
     "CategoryModel",
     "ChatMessageModel",

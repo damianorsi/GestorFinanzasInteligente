@@ -47,6 +47,30 @@ class BudgetStatus(StrEnum):
     EXCEEDED = "EXCEEDED"
 
 
+class AlertType(StrEnum):
+    """Qué desvío detectó el job (docs/PROMPT.md §21.2)."""
+
+    # Ya se pasó del tope.
+    BUDGET_EXCEEDED = "BUDGET_EXCEEDED"
+    # El ritmo proyecta pasarse antes de fin de mes. Es la que hace proactiva
+    # la feature: todavía se puede corregir.
+    BUDGET_AT_RISK = "BUDGET_AT_RISK"
+    # Categoría con gasto relevante y sin tope definido.
+    UNBUDGETED_SPENDING = "UNBUDGETED_SPENDING"
+
+
+class AlertStatus(StrEnum):
+    """En qué estado está una alerta.
+
+    `RESOLVED` no se borra: si se borrara, el job la volvería a emitir a la
+    corrida siguiente.
+    """
+
+    OPEN = "OPEN"
+    READ = "READ"
+    RESOLVED = "RESOLVED"
+
+
 class ReceiptScanStatus(StrEnum):
     """En qué terminó la lectura de un ticket.
 
@@ -68,6 +92,8 @@ class ChatRole(StrEnum):
 
 
 __all__ = [
+    "AlertStatus",
+    "AlertType",
     "BudgetStatus",
     "ChatRole",
     "OccurrenceStatus",
