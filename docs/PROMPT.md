@@ -12,6 +12,8 @@ Trabajá de forma incremental y verificable: **cada fase termina con código que
 
 Aplicación web donde un usuario registra ingresos y gastos, los clasifica por categorías, define **presupuestos mensuales** por categoría, automatiza sus movimientos fijos mediante **reglas recurrentes**, visualiza estadísticas y consulta sus finanzas en lenguaje natural mediante un chatbot. El objetivo del producto es **facilitar la organización financiera y dar recomendaciones accionables** sobre la administración del dinero.
 
+Sobre esa base se agregan tres capacidades donde la IA hace el trabajo y no solo responde preguntas (§21): **cargar un gasto sacándole una foto al ticket**, **avisar de un desvío presupuestario antes de que ocurra** y **proyectar si el ritmo de ahorro alcanza para una meta**. Las tres comparten un principio: la IA propone, la persona dispone. Ninguna escribe en las finanzas de alguien sin confirmación explícita.
+
 ## 3. Stack tecnológico (obligatorio)
 
 | Capa | Tecnología |
@@ -173,6 +175,9 @@ Tablas (MySQL 8, InnoDB, `utf8mb4`):
 - **chat_messages**: `id`, `user_id` (FK), `conversation_id` (UUID), `role` (ENUM `USER`/`ASSISTANT`), `content` (TEXT), `created_at`. Índice `(user_id, conversation_id, created_at)`.
 - **chat_usage** *(telemetría de tokens)*: `id`, `user_id` (FK), `conversation_id`, `model`, `prompt_tokens` (INT), `completion_tokens` (INT), `total_tokens` (INT), `tool_calls_count` (INT), `latency_ms` (INT), `created_at`. Índice `(user_id, created_at)`.
 - **refresh_tokens** (o denylist de JTI): `id`, `user_id`, `token_hash`, `expires_at`, `revoked_at`.
+- **receipt_scans** *(CU13, §21.1)*: `id`, `user_id` (FK), `status` (ENUM `EXTRACTED`/`FAILED`/`CONFIRMED`), `amount` DECIMAL(14,2) nullable, `occurred_on` (DATE, nullable), `merchant` (VARCHAR 120, nullable), `category_id` (FK, nullable), `confidence` (JSON: confianza por campo), `transaction_id` (FK → transactions, nullable, ON DELETE SET NULL), `model`, `total_tokens` (INT), `latency_ms` (INT), `created_at`. Índice `(user_id, created_at)`. **No guarda la imagen**: ver §21.1.
+- **budget_alerts** *(CU14, §21.2)*: `id`, `user_id` (FK), `category_id` (FK), `period_month` (DATE, día 1), `type` (ENUM `BUDGET_EXCEEDED`/`BUDGET_AT_RISK`/`UNBUDGETED_SPENDING`), `status` (ENUM `OPEN`/`READ`/`RESOLVED`), `message` (TEXT), `recommendation` (TEXT, nullable), `projected_percentage` DECIMAL(7,2) nullable, `created_at`, `updated_at`. **UNIQUE `(user_id, category_id, period_month, type)`** ← garantía de idempotencia del job, obligatoria.
+- **savings_goals** *(CU15, §21.3)*: `id`, `user_id` (FK), `name` (VARCHAR 120), `target_amount` DECIMAL(14,2), **`currency` CHAR(3) NOT NULL DEFAULT 'ARS'**, `starts_on` (DATE), `target_date` (DATE, nullable), `is_active` (BOOL), `created_at`, `updated_at`. Índice `(user_id, is_active)`.
 
 Reglas de datos:
 - **El dinero se maneja con `Money` / `Decimal` / `DECIMAL(14,2)` en todas las capas. Nunca `float`.** El JSON serializa montos como string.
@@ -228,6 +233,15 @@ GET    /transactions/export      200 text/csv (mismos filtros que el listado; `f
 
 POST   /chat                     200 (consulta al asistente)
 GET    /chat/history             200
+
+POST   /receipts/scan            200 multipart; devuelve un BORRADOR, NO crea el movimiento
+GET    /alerts                   200 (filtro: status)
+PATCH  /alerts/{id}              200 (marcar leída)
+GET    /savings-goals            200
+POST   /savings-goals            201 + header Location
+PATCH  /savings-goals/{id}       200
+DELETE /savings-goals/{id}       204
+GET    /savings-goals/progress   200 (avance y proyección de cada meta)
 ```
 
 - **Todos los endpoints de lectura con montos aceptan `currency` (opcional, default `ARS`) y devuelven el campo `currency` en la respuesta.**
@@ -437,6 +451,26 @@ Casos que sí o sí hay que cubrir:
 - `copy-from` no pisa presupuestos existentes en el destino.
 - Mes sin presupuestos → respuesta vacía bien formada, no error.
 
+**Tickets (CU13)**
+- El modelo de visión va **mockeado**. Se testea que el borrador se arma bien y que la categoría sugerida sale de las del usuario, **no** que el modelo lea bien.
+- **El endpoint no crea ningún movimiento**: después de escanear, el listado sigue igual.
+- Categoría sugerida que no es del usuario → se descarta y el borrador va sin categoría.
+- Archivo que no es imagen, o que supera el tamaño máximo → 422.
+- El proveedor falla → 503, nunca un borrador con ceros.
+- Al superar el cupo por hora → 429.
+
+**Alertas (CU14)**
+- **Idempotencia**: correr el job 3 veces deja exactamente las mismas alertas.
+- La proyección marca `BUDGET_AT_RISK` **antes** de que el gasto supere el tope.
+- Una alerta resuelta no se vuelve a emitir al día siguiente.
+- Con el agente caído, la alerta se emite igual y sin recomendación.
+- Un usuario nunca ve las alertas de otro.
+
+**Metas (CU15)**
+- Con menos de dos meses de historial no proyecta: lo informa.
+- Ritmo que no llega antes de `target_date` → `AT_RISK`.
+- Meta alcanzada → `ACHIEVED`, y deja de proyectar.
+
 **Chat**
 - El LLM va **mockeado**. Se testea que las tools devuelven los agregados correctos y que el endpoint arma bien el contexto, **no la redacción del modelo**.
 - Se persiste la fila en `chat_usage` con los tokens del `usage`.
@@ -479,6 +513,9 @@ Implementá los 12 casos de uso. Cada uno se considera terminado cuando cumple s
 | 10 | Asistente inteligente | Las consultas de ejemplo devuelven cifras que coinciden exactamente con los endpoints de reportes y presupuestos para el mismo período. Nunca accede a datos de otro usuario. Cada consulta deja su fila en `chat_usage`. |
 | 11 | Movimientos recurrentes | Una regla activa genera exactamente un movimiento por ocurrencia vencida, nunca futura, sin duplicados al reejecutar, respetando pausas, `ends_on` y el ajuste de día 31. El preview del front coincide con lo que después genera el job. |
 | 12 | Presupuestos por categoría | El usuario define un tope mensual por categoría de gasto; `GET /budgets/progress` devuelve gastado, restante, porcentaje y estado correctos, y el asistente los usa para sus recomendaciones. |
+| 13 | Lectura inteligente de tickets | Subir la foto de un ticket devuelve un **borrador** con monto, fecha, comercio y categoría sugerida entre las del usuario, con la confianza de cada campo. **Nunca crea el movimiento solo.** Imagen ilegible → 422 accionable, nunca un borrador en cero. La imagen no se persiste. (§21.1) |
+| 14 | Alertas proactivas ante desvíos | Un job diario emite alertas de desvío presupuestario, incluida la **proyección** de superar el tope antes de fin de mes. Correrlo N veces deja las mismas alertas que correrlo una. Si OpenAI falla, la alerta se emite igual sin recomendación. (§21.2) |
+| 15 | Metas de ahorro con proyección | El usuario define una meta y ve su avance y en cuántos meses la alcanza según su ritmo real. Con menos de dos meses de historial informa que faltan datos en vez de proyectar. El asistente responde sobre ellas con la misma cifra que la pantalla. (§21.3) |
 
 Consultas que el asistente debe responder correctamente (casos de prueba del CU10):
 - ¿Cuánto gasté este mes?
@@ -510,6 +547,16 @@ Ejecutá en este orden, con commit y tests verdes al cierre de cada fase.
 13. **Frontend recurrentes**: ABM con preview de próximas fechas, historial de ocurrencias, próximos vencimientos en el dashboard.
 14. **Cierre**: README completo (query de consumo de tokens, nota de recalibración, roadmap de USD y su pregunta abierta de tipo de cambio), OpenAPI revisada, verificación end-to-end con `docker compose up` desde cero.
 
+### Extensiones posteriores al cierre
+
+Se agregan **sobre un producto que ya funciona**, y por eso cada una entra completa —backend, frontend y tests— antes de empezar la siguiente. El detalle está en §21.
+
+15. **Lectura inteligente de tickets** (CU13): endpoint de carga, extracción con modelo de visión, borrador de confirmación y flujo desde el celular.
+16. **Alertas proactivas** (CU14): segundo job del scheduler, detección con proyección, recomendación del agente y bandeja en la interfaz.
+17. **Metas de ahorro** (CU15): ABM, proyección sobre la tendencia real y tool nueva del asistente.
+
+El orden responde al valor: el OCR es el que mejor demuestra el uso de IA y el que engancha con la aplicación en el celular; las metas son la más prescindible si el tiempo aprieta.
+
 ## 19. Decisiones cerradas — no volver a preguntar
 
 | Tema | Decisión |
@@ -533,3 +580,143 @@ Ejecutá en este orden, con commit y tests verdes al cierre de cada fase.
 - **No materialices movimientos con fecha futura.** Las proyecciones se calculan al vuelo y nunca entran a reportes, balance ni export.
 - No hardcodees secretos ni los subas al repo. Tampoco el identificador del modelo de OpenAI: va por env.
 - No declares una fase terminada sin haber corrido los tests y visto la salida.
+
+## 21. Extensiones con IA (CU13 a CU15)
+
+> Estas tres se agregan **después** de cerrar las 14 fases originales, sobre un producto
+> que ya funciona. La numeración arranca en 21 y no se intercala entre las secciones
+> existentes a propósito: hay 25 comentarios en el código que referencian secciones de
+> este documento por número, y renumerar los dejaría a todos apuntando al lugar
+> equivocado.
+>
+> **El principio que las une**: la IA propone, la persona dispone. Ninguna de las tres
+> escribe en las finanzas de alguien sin confirmación explícita.
+
+### 21.1 CU13 — Lectura inteligente de tickets
+
+Sacar una foto de un ticket y que la aplicación proponga el movimiento ya cargado.
+
+#### Regla de oro: nunca crea el movimiento solo
+
+El endpoint devuelve un **borrador** que la persona revisa y confirma. Un OCR que escribe
+montos mal leídos en las finanzas de alguien, en silencio, es peor que no tener OCR: el
+error queda en el historial, contamina los reportes y el presupuesto, y nadie se entera
+hasta que las cuentas no cierran.
+
+Por eso la confirmación **reutiliza el `POST /transactions` que ya existe**. No hay un
+segundo camino de creación: las mismas validaciones, las mismas invariantes, el mismo
+código. El borrador solo precarga el formulario.
+
+#### La imagen no se persiste
+
+Se procesa en memoria y se descarta al terminar el request. Un ticket puede tener los
+últimos dígitos de una tarjeta, una dirección o un nombre; guardarlo multiplica la
+superficie de riesgo a cambio de nada, porque el producto no necesita la foto una vez
+extraídos los datos. Lo que sí se guarda es el resultado y su telemetría, en
+`receipt_scans`, para poder medir qué tan bien lee el modelo.
+
+#### Extracción
+
+- Modelo con visión, configurable por `OPENAI_VISION_MODEL`. Cambiar de modelo es editar
+  el `.env`, nunca tocar código.
+- Salida **estructurada**, no texto libre: `amount`, `occurred_on`, `merchant`,
+  `category_id` sugerida y una **confianza por campo**.
+- **La categoría se elige de las del usuario, no se inventa.** Al prompt se le pasa la
+  lista cerrada de categorías propias y devuelve una de ésas o ninguna. Es el mismo
+  principio que las tools del asistente: el modelo elige entre opciones acotadas.
+- Cuando la confianza de un campo es baja, **se dice en la respuesta y se marca en la
+  interfaz**. Esconder la duda es lo que hace que alguien confirme un monto equivocado.
+- Fecha: si el ticket no la trae o es ilegible, se propone la de hoy resuelta con el
+  `Clock`, nunca una inventada por el modelo.
+
+#### Límites y fallos
+
+- Formatos aceptados: JPEG, PNG y WebP. Tamaño máximo por `RECEIPT_MAX_SIZE_MB`
+  (default 8).
+- Cupo por usuario y por hora: `RECEIPT_RATE_LIMIT_PER_HOUR` (default 10). Cada lectura
+  cuesta plata.
+- Si el modelo no puede leer el ticket, **422 con mensaje accionable en español**, no un
+  500 ni un borrador inventado con ceros.
+- Si el proveedor falla o se agota el tiempo → 503 `assistant_unavailable`, el mismo
+  código que ya usa el chat.
+- **Aviso de duplicado**: si ya existe un movimiento del mismo monto y fecha, se informa
+  en el borrador. No se bloquea —pagar dos cafés iguales el mismo día es normal— pero
+  escanear dos veces el mismo ticket también lo es.
+
+### 21.2 CU14 — Alertas proactivas ante desvíos
+
+Hoy el producto avisa de un desvío **solo si la persona entra a mirar**. Esta extensión
+lo da vuelta.
+
+#### Lo proactivo es la proyección, no el aviso
+
+Decir "te pasaste del tope" cuando ya te pasaste no es una alerta, es un informe tardío:
+es lo mismo que la pantalla de presupuestos ya muestra. Lo que se agrega es avisar
+**cuando vas camino a pasarte**: al día 10 del mes, con el 60% del tope consumido, el
+ritmo proyecta terminar en 180%. Eso todavía se puede corregir.
+
+Tipos de alerta:
+
+| Tipo | Cuándo se emite |
+|---|---|
+| `BUDGET_EXCEEDED` | El gasto del mes superó el tope |
+| `BUDGET_AT_RISK` | El ritmo de gasto proyecta superar el tope antes de fin de mes |
+| `UNBUDGETED_SPENDING` | Una categoría acumula gasto relevante y no tiene tope definido |
+
+#### La recomendación la escribe el agente
+
+La detección es una regla; **lo que la vuelve IA es qué hacer al respecto**. Cada alerta
+lleva una recomendación redactada por el agente con las herramientas que ya existen
+(`get_budget_status`, `get_spending_by_category`, `compare_periods`).
+
+Si OpenAI no responde, **la alerta se emite igual** con su texto factual y sin
+recomendación. El valor de saber que te estás pasando no depende de que el modelo esté
+disponible.
+
+#### Idempotencia
+
+Corre como un **segundo job** del scheduler, después del de recurrentes. Vale la misma
+regla que ahí: **correrlo cincuenta veces tiene que dejar lo mismo que correrlo una**. La
+garantía es una UNIQUE `(user_id, category_id, period_month, type)` en `budget_alerts`.
+
+Una alerta resuelta —bajó el gasto, subió el tope— se marca `RESOLVED`, no se borra. Sin
+eso, el job la volvería a emitir al día siguiente.
+
+### 21.3 CU15 — Metas de ahorro con proyección
+
+Definir un objetivo («juntar 2.000.000 para diciembre») y ver si el ritmo alcanza.
+
+#### La proyección es estadística, y se dice
+
+El cálculo es el **balance mensual promedio de los últimos meses** aplicado al monto que
+falta. No es un modelo predictivo y la interfaz no lo presenta como tal: dice
+explícitamente sobre cuántos meses de historial se calculó. Vender una regresión simple
+como predicción de IA es exactamente lo que este documento pide no hacer.
+
+- Con menos de dos meses de historial **no se proyecta**: se dice que faltan datos.
+- Estados: `ON_TRACK`, `AT_RISK` (llega tarde respecto de `target_date`), `ACHIEVED`.
+- El progreso se mide contra el **balance acumulado desde `starts_on`**, no contra una
+  cuenta separada: el producto no maneja cuentas.
+
+#### El asistente las conoce
+
+Se suma la tool `get_savings_goals`, con el `user_id` cerrado como todas las demás, para
+que pueda responder «¿voy a llegar a mi meta?» con la misma cifra que muestra la pantalla.
+
+### 21.4 Variables de entorno que agregan
+
+```
+OPENAI_VISION_MODEL, RECEIPT_MAX_SIZE_MB, RECEIPT_RATE_LIMIT_PER_HOUR,
+ALERTS_JOB_HOUR, ALERTS_MIN_UNBUDGETED_AMOUNT
+```
+
+### 21.5 Lo que NO cambia
+
+- **Aislamiento multiusuario**: todo lo nuevo filtra por el `user_id` del token. Un
+  recurso ajeno devuelve 404.
+- **Moneda y zona horaria**: valen las mismas reglas de §5. Las proyecciones de metas
+  filtran por moneda, y las fechas salen del `Clock`.
+- **La API key de OpenAI vive solo en el backend.** La imagen del ticket viaja al
+  backend, y es el backend el que llama al modelo. El frontend nunca habla con OpenAI.
+- **Telemetría desde el día uno**: las lecturas de ticket y las recomendaciones de alerta
+  persisten su consumo de tokens, igual que el chat.
