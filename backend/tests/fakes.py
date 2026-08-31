@@ -8,12 +8,15 @@ métodos llamó, que es lo que termina rompiéndose en cada refactor.
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 
 from app.application.dtos import (
     CategoryTotal,
     CategoryUsage,
     ChatMessage,
+    ExtractedReceipt,
     MonthlyTotal,
     Page,
     PaginatedResult,
@@ -31,7 +34,12 @@ from app.domain.entities import (
     Transaction,
     User,
 )
-from app.domain.enums import ChatRole, OccurrenceStatus, TransactionType
+from app.domain.enums import (
+    ChatRole,
+    OccurrenceStatus,
+    ReceiptScanStatus,
+    TransactionType,
+)
 from app.domain.value_objects import Money
 
 
@@ -496,6 +504,91 @@ class FakeChatRepository:
         self, user_id: int, conversation_id: str, usage: TokenUsage, latency_ms: int
     ) -> None:
         self.consumos.append((user_id, conversation_id, usage, latency_ms))
+
+
+@dataclass
+class LecturaGuardada:
+    """Lo que el repositorio de tickets persiste.
+
+    **No tiene campo para la imagen**, igual que la tabla real: la foto se
+    procesa en memoria y se descarta (docs/PROMPT.md §21.1).
+    """
+
+    user_id: int
+    status: ReceiptScanStatus
+    amount: Decimal | None
+    occurred_on: date | None
+    merchant: str | None
+    category_id: int | None
+    model: str
+    latency_ms: int
+    created_at: datetime
+
+
+class FakeReceiptScanRepository:
+    def __init__(self, ahora: datetime | None = None) -> None:
+        self.lecturas: list[LecturaGuardada] = []
+        self.duplicados: list[int] = []
+        # Movimientos que este repositorio haya creado. Siempre vacío: el
+        # caso de uso no crea ninguno, y el test lo verifica.
+        self.movimientos_creados: list[int] = []
+        self.ahora = ahora or datetime(2026, 8, 5, 12, 0, 0)
+        self._siguiente_id = 1
+
+    async def save(
+        self,
+        user_id: int,
+        extracted: ExtractedReceipt,
+        category_id: int | None,
+        model: str,
+        total_tokens: int,
+        latency_ms: int,
+    ) -> int:
+        self.lecturas.append(
+            LecturaGuardada(
+                user_id=user_id,
+                status=ReceiptScanStatus.EXTRACTED,
+                amount=extracted.amount,
+                occurred_on=extracted.occurred_on,
+                merchant=extracted.merchant,
+                category_id=category_id,
+                model=model,
+                latency_ms=latency_ms,
+                created_at=self.ahora,
+            )
+        )
+        self._siguiente_id += 1
+        return self._siguiente_id
+
+    async def save_failure(self, user_id: int, model: str, latency_ms: int) -> None:
+        self.lecturas.append(
+            LecturaGuardada(
+                user_id=user_id,
+                status=ReceiptScanStatus.FAILED,
+                amount=None,
+                occurred_on=None,
+                merchant=None,
+                category_id=None,
+                model=model,
+                latency_ms=latency_ms,
+                created_at=self.ahora,
+            )
+        )
+
+    async def count_since(self, user_id: int, since: datetime) -> int:
+        # Cada lectura queda sellada con el `ahora` del momento, igual que el
+        # `created_at` de la tabla. El test mueve `ahora` para simular el paso
+        # del tiempo y así el filtro por hora se ejercita de verdad.
+        return sum(
+            1
+            for lectura in self.lecturas
+            if lectura.user_id == user_id and lectura.created_at >= since
+        )
+
+    async def find_possible_duplicates(
+        self, user_id: int, amount: Decimal, occurred_on: date, currency: str
+    ) -> list[int]:
+        return list(self.duplicados)
 
 
 class FakeRefreshTokenRepository:

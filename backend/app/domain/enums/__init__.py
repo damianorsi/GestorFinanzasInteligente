@@ -47,6 +47,19 @@ class BudgetStatus(StrEnum):
     EXCEEDED = "EXCEEDED"
 
 
+class ReceiptScanStatus(StrEnum):
+    """En qué terminó la lectura de un ticket.
+
+    `CONFIRMED` no lo pone el lector sino la confirmación posterior: el
+    borrador solo se vuelve movimiento cuando la persona lo acepta
+    (docs/PROMPT.md §21.1).
+    """
+
+    EXTRACTED = "EXTRACTED"
+    FAILED = "FAILED"
+    CONFIRMED = "CONFIRMED"
+
+
 class ChatRole(StrEnum):
     """Quién emitió un mensaje de la conversación con el asistente."""
 
@@ -58,6 +71,7 @@ __all__ = [
     "BudgetStatus",
     "ChatRole",
     "OccurrenceStatus",
+    "ReceiptScanStatus",
     "RecurrenceFrequency",
     "TransactionType",
 ]

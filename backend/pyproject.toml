@@ -28,6 +28,9 @@ dependencies = [
     # falla con "cryptography package is required".
     "cryptography>=43.0",
     "alembic>=1.14",
+    # Requerido por FastAPI para leer multipart, que es como llega la foto del
+    # ticket. Sin esto el endpoint devuelve un error de dependencia al arrancar.
+    "python-multipart>=0.0.20",
     # Job de movimientos recurrentes, in-process. Con una sola réplica alcanza:
     # la idempotencia la garantiza la UNIQUE de `recurring_occurrences`.
     "apscheduler>=3.11,<4",

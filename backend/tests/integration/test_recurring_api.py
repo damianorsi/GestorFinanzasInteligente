@@ -16,6 +16,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.use_cases.recurring import GenerateRecurringTransactions
+from app.infrastructure.clock import get_clock
 from app.infrastructure.db.models import RecurringOccurrenceModel, TransactionModel
 from app.infrastructure.db.repositories import (
     SqlAlchemyCategoryRepository,
@@ -442,9 +443,14 @@ class TestJobContraLaBase:
             f"{RUTA}/{regla['id']}", headers=cuenta.headers, json={"is_active": True}
         )
 
-        # Act
+        # Act: el job corre con el MISMO hoy que usó la reactivación, que fue
+        # por la API y por lo tanto con el reloj real. Con el `HOY` fijo de los
+        # otros tests, las dos ventanas de catch-up quedan ancladas en fechas
+        # distintas: al alejarse el reloj real de esa constante dejan de
+        # solaparse, y aparece un mes que el job genera porque la reactivación
+        # nunca lo alcanzó a marcar.
         async with _job() as job:
-            await job.execute(HOY)
+            await job.execute(get_clock().today())
 
         # Assert: pausar es decidir no generar, no diferir. Sin esto, reactivar
         # inyectaría de golpe todos los meses de la pausa.

@@ -6,6 +6,8 @@ from app.application.ports.chat_agent import ChatAgent
 from app.application.ports.chat_repository import ChatRepository
 from app.application.ports.clock import Clock
 from app.application.ports.password_hasher import PasswordHasher
+from app.application.ports.receipt_reader import ReceiptReader
+from app.application.ports.receipt_scan_repository import ReceiptScanRepository
 from app.application.ports.recurring_occurrence_repository import RecurringOccurrenceRepository
 from app.application.ports.recurring_rule_repository import RecurringRuleRepository
 from app.application.ports.refresh_token_repository import RefreshTokenRepository
@@ -21,6 +23,8 @@ __all__ = [
     "ChatRepository",
     "Clock",
     "PasswordHasher",
+    "ReceiptReader",
+    "ReceiptScanRepository",
     "RecurringOccurrenceRepository",
     "RecurringRuleRepository",
     "RefreshTokenRepository",

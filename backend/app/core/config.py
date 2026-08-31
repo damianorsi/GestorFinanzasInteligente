@@ -66,6 +66,14 @@ class Settings(BaseSettings):
     chat_history_window: int = 6
     chat_rate_limit_per_hour: int = 20
 
+    # --- Lectura de tickets (docs/PROMPT.md §21.1) --------------------------
+    # Modelo con visión. Se separa de `openai_model` para poder usar uno más
+    # capaz solo acá: leer un ticket arrugado es más difícil que redactar una
+    # respuesta sobre datos ya agregados.
+    openai_vision_model: str = "gpt-5-mini"
+    receipt_max_size_mb: int = 8
+    receipt_rate_limit_per_hour: int = 10
+
     # --- Exportación --------------------------------------------------------
     # Tope de filas por export. Se avisa al superarlo en vez de truncar: un CSV
     # recortado en silencio parece completo y es peor que un error.

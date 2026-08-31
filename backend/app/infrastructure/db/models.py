@@ -20,6 +20,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     CHAR,
+    JSON,
     BigInteger,
     Boolean,
     Date,
@@ -38,7 +39,13 @@ from sqlalchemy import (
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.domain.enums import ChatRole, OccurrenceStatus, RecurrenceFrequency, TransactionType
+from app.domain.enums import (
+    ChatRole,
+    OccurrenceStatus,
+    ReceiptScanStatus,
+    RecurrenceFrequency,
+    TransactionType,
+)
 from app.infrastructure.db.base import Base
 
 PRECISION_MONTO = 14
@@ -335,11 +342,60 @@ class ChatUsageModel(Base):
     )
 
 
+# ---------------------------------------------------------------------------
+# Lectura de tickets
+# ---------------------------------------------------------------------------
+class ReceiptScanModel(Base):
+    """Resultado de una lectura de ticket.
+
+    **No guarda la imagen.** La foto se procesa en memoria y se descarta: puede
+    traer los últimos dígitos de una tarjeta o una dirección, y el producto no
+    la necesita una vez extraídos los campos (docs/PROMPT.md §21.1). Lo que se
+    persiste es qué leyó el modelo y cuánto costó, para poder medir si vale la
+    pena y con qué frecuencia se equivoca.
+    """
+
+    __tablename__ = "receipt_scans"
+    __table_args__ = (
+        Index("ix_receipt_scans_user_created", "user_id", "created_at"),
+        _OPCIONES_MYSQL,
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    status: Mapped[ReceiptScanStatus] = mapped_column(
+        _enum(ReceiptScanStatus, "receipt_scan_status"), nullable=False
+    )
+    # Todo nullable: un ticket arrugado puede no tener monto legible, y guardar
+    # la lectura parcial sirve para saber qué tan seguido pasa.
+    amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    occurred_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    merchant: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    category_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True
+    )
+    # Confianza por campo, como JSON. Es un dato de diagnóstico y no se
+    # consulta por sus claves, así que no justifica columnas propias.
+    confidence: Mapped[dict[str, float] | None] = mapped_column(JSON, nullable=True)
+    transaction_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("transactions.id", ondelete="SET NULL"), nullable=True
+    )
+    model: Mapped[str] = mapped_column(String(80), nullable=False)
+    total_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    latency_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+
 __all__ = [
     "BudgetModel",
     "CategoryModel",
     "ChatMessageModel",
     "ChatUsageModel",
+    "ReceiptScanModel",
     "RecurringOccurrenceModel",
     "RecurringRuleModel",
     "RefreshTokenModel",

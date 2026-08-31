@@ -36,6 +36,40 @@ config.set_main_option("sqlalchemy.url", _url)
 target_metadata = Base.metadata
 
 
+def _comparar_default_del_servidor(
+    contexto: object,
+    columna_inspeccionada: object,
+    columna_del_modelo: object,
+    default_inspeccionado: object,
+    default_del_modelo: object,
+    default_del_modelo_renderizado: str | None,
+) -> bool | None:
+    """Decide si el default del servidor cambió de verdad.
+
+    MySQL devuelve `CURRENT_TIMESTAMP` donde el modelo declara `now()`, y
+    Alembic los toma por distintos. Sin esta comparación, **cada autogenerate
+    propone un `alter_column` por cada `created_at` y `updated_at` del
+    esquema**: catorce operaciones que reescriben todas las tablas para
+    dejarlas exactamente igual. Ya se colaron una vez en una migración y
+    hubo que sacarlas a mano.
+
+    Se normaliza el texto de los dos lados y se comparan. Devolver `False`
+    significa "no cambió".
+    """
+    if default_inspeccionado is None or default_del_modelo is None:
+        # Sin uno de los dos lados no hay nada que normalizar: devolver None
+        # deja que decida Alembic con su criterio de siempre.
+        return None
+
+    def normalizar(valor: object) -> str:
+        texto = str(getattr(valor, "arg", valor)).strip().lower()
+        # MySQL devuelve `CURRENT_TIMESTAMP` donde el modelo dice `now()`, y
+        # entrecomilla los defaults numéricos: `'1'` contra `1`.
+        return texto.replace("current_timestamp", "now").replace("()", "").strip("()").strip("'\"")
+
+    return normalizar(default_del_modelo) != normalizar(default_inspeccionado)
+
+
 def run_migrations_offline() -> None:
     """Genera el SQL sin conectarse a la base."""
     context.configure(
@@ -54,7 +88,7 @@ def do_run_migrations(connection: Connection) -> None:
         connection=connection,
         target_metadata=target_metadata,
         compare_type=True,
-        compare_server_default=True,
+        compare_server_default=_comparar_default_del_servidor,
     )
     with context.begin_transaction():
         context.run_migrations()

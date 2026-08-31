@@ -72,6 +72,19 @@ class AssistantUnavailableError(ApplicationError):
     """
 
 
+class ReceiptUnreadableError(ApplicationError):
+    """El archivo no es un ticket que se pueda leer.
+
+    Se distingue de `AssistantUnavailableError` a propósito: acá el proveedor
+    contestó bien y el problema es la imagen. Uno se reintenta, el otro se
+    resuelve sacando mejor la foto o cargando el gasto a mano.
+    """
+
+
+class UnsupportedFileTypeError(ApplicationError):
+    """El archivo no tiene un formato aceptado, o pesa de más."""
+
+
 class ExportTooLargeError(ApplicationError):
     """La exportación pedida no entra en una sola respuesta.
 
@@ -99,7 +112,9 @@ __all__ = [
     "InvalidReferenceError",
     "InvalidTokenError",
     "RateLimitExceededError",
+    "ReceiptUnreadableError",
     "ResourceInUseError",
     "ResourceNotFoundError",
     "UnsupportedCurrencyError",
+    "UnsupportedFileTypeError",
 ]

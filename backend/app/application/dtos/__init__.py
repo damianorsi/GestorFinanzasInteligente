@@ -28,6 +28,11 @@ from app.application.dtos.pagination import (
     Page,
     PaginatedResult,
 )
+from app.application.dtos.receipts import (
+    UMBRAL_DE_CONFIANZA_BAJA,
+    ExtractedReceipt,
+    ReceiptDraft,
+)
 from app.application.dtos.recurring import (
     GenerationResult,
     UpcomingOccurrence,
@@ -53,6 +58,7 @@ __all__ = [
     "LIMITE_MAXIMO",
     "LIMITE_POR_DEFECTO",
     "ORDEN_POR_DEFECTO",
+    "UMBRAL_DE_CONFIANZA_BAJA",
     "AssistantAnswer",
     "BudgetCopyResult",
     "BudgetProgress",
@@ -61,6 +67,7 @@ __all__ = [
     "CategoryTotal",
     "CategoryUsage",
     "ChatMessage",
+    "ExtractedReceipt",
     "GenerationResult",
     "IssuedToken",
     "MonthlyTotal",
@@ -68,6 +75,7 @@ __all__ = [
     "Page",
     "PaginatedResult",
     "PeriodSummary",
+    "ReceiptDraft",
     "SkippedBudget",
     "SortCriterion",
     "SortDirection",

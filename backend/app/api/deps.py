@@ -24,6 +24,7 @@ from app.application.ports import (
     ChatRepository,
     Clock,
     PasswordHasher,
+    ReceiptScanRepository,
     RecurringOccurrenceRepository,
     RecurringRuleRepository,
     RefreshTokenRepository,
@@ -52,6 +53,7 @@ from app.application.use_cases.categories import (
     UpdateCategory,
 )
 from app.application.use_cases.chat import AskAssistant, GetChatHistory
+from app.application.use_cases.receipts import ScanReceipt
 from app.application.use_cases.recurring import (
     CreateRecurringRule,
     DeleteRecurringRule,
@@ -75,12 +77,17 @@ from app.application.use_cases.transactions import (
 )
 from app.core.config import Settings, get_settings
 from app.domain.entities import User
-from app.infrastructure.assistant import DependenciasDelAsistente, LangChainAssistant
+from app.infrastructure.assistant import (
+    DependenciasDelAsistente,
+    LangChainAssistant,
+    OpenAIReceiptReader,
+)
 from app.infrastructure.clock import get_clock
 from app.infrastructure.db.repositories import (
     SqlAlchemyBudgetRepository,
     SqlAlchemyCategoryRepository,
     SqlAlchemyChatRepository,
+    SqlAlchemyReceiptScanRepository,
     SqlAlchemyRecurringOccurrenceRepository,
     SqlAlchemyRecurringRuleRepository,
     SqlAlchemyRefreshTokenRepository,
@@ -407,6 +414,33 @@ def get_ask_assistant(
 
 def get_chat_history(chat: Chats, settings: AppSettings) -> GetChatHistory:
     return GetChatHistory(chat, settings.chat_history_window)
+
+
+# --- Lectura de tickets ----------------------------------------------------
+def get_receipt_scan_repository(session: DbSession) -> ReceiptScanRepository:
+    return SqlAlchemyReceiptScanRepository(session)
+
+
+def get_scan_receipt(
+    scans: Annotated[ReceiptScanRepository, Depends(get_receipt_scan_repository)],
+    categories: Categories,
+    clock: AppClock,
+    settings: AppSettings,
+) -> ScanReceipt:
+    return ScanReceipt(
+        reader=OpenAIReceiptReader(
+            api_key=settings.openai_api_key,
+            model=settings.openai_vision_model,
+            timeout_seconds=settings.openai_timeout_seconds,
+        ),
+        scans=scans,
+        categories=categories,
+        clock=clock,
+        default_currency=settings.default_currency,
+        max_size_mb=settings.receipt_max_size_mb,
+        rate_limit_per_hour=settings.receipt_rate_limit_per_hour,
+        model=settings.openai_vision_model,
+    )
 
 
 # --- Recurrentes -----------------------------------------------------------

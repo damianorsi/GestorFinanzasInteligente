@@ -29,9 +29,11 @@ from app.application.exceptions import (
     InvalidReferenceError,
     InvalidTokenError,
     RateLimitExceededError,
+    ReceiptUnreadableError,
     ResourceInUseError,
     ResourceNotFoundError,
     UnsupportedCurrencyError,
+    UnsupportedFileTypeError,
 )
 from app.domain.exceptions import DomainError
 
@@ -134,6 +136,8 @@ _MAPEO_APLICACION: dict[type[ApplicationError], tuple[int, str]] = {
     ),
     InvalidReferenceError: (status.HTTP_422_UNPROCESSABLE_CONTENT, "invalid_reference"),
     ExportTooLargeError: (status.HTTP_422_UNPROCESSABLE_CONTENT, "export_too_large"),
+    ReceiptUnreadableError: (status.HTTP_422_UNPROCESSABLE_CONTENT, "receipt_unreadable"),
+    UnsupportedFileTypeError: (status.HTTP_422_UNPROCESSABLE_CONTENT, "unsupported_file_type"),
     RateLimitExceededError: (status.HTTP_429_TOO_MANY_REQUESTS, "rate_limit_exceeded"),
     AssistantUnavailableError: (
         status.HTTP_503_SERVICE_UNAVAILABLE,
