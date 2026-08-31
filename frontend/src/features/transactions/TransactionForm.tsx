@@ -10,8 +10,25 @@ import type { ErroresDeFormulario } from '@/utils/apiErrors'
 
 import { useCrearMovimiento, useEditarMovimiento } from './api'
 
+/**
+ * Valores con los que arranca un alta.
+ *
+ * Los usa la lectura de tickets para precargar el formulario. Es una precarga
+ * y no un movimiento: la creación pasa por el mismo `POST /transactions` que
+ * el alta manual, con las mismas validaciones (docs/PROMPT.md §21.1).
+ */
+export interface PrecargaDeMovimiento {
+  amount?: string | null
+  occurred_on?: string
+  category_id?: number | null
+  description?: string | null
+  /** Campos que el lector marcó como dudosos, para señalarlos en el formulario. */
+  camposDudosos?: string[]
+}
+
 interface TransactionFormProps {
   movimiento?: Transaction
+  precarga?: PrecargaDeMovimiento
   onListo: () => void
 }
 
@@ -22,14 +39,22 @@ function hoyEnIso(): string {
   return `${ahora.getFullYear()}-${mes}-${dia}`
 }
 
-export function TransactionForm({ movimiento, onListo }: TransactionFormProps) {
+export function TransactionForm({ movimiento, precarga, onListo }: TransactionFormProps) {
   const esEdicion = movimiento !== undefined
 
   const [type, setType] = useState<TransactionType>(movimiento?.type ?? 'EXPENSE')
-  const [amount, setAmount] = useState(movimiento?.amount ?? '')
-  const [occurredOn, setOccurredOn] = useState(movimiento?.occurred_on ?? hoyEnIso())
-  const [categoryId, setCategoryId] = useState<number | ''>(movimiento?.category_id ?? '')
-  const [description, setDescription] = useState(movimiento?.description ?? '')
+  const [amount, setAmount] = useState(movimiento?.amount ?? precarga?.amount ?? '')
+  const [occurredOn, setOccurredOn] = useState(
+    movimiento?.occurred_on ?? precarga?.occurred_on ?? hoyEnIso(),
+  )
+  const [categoryId, setCategoryId] = useState<number | ''>(
+    movimiento?.category_id ?? precarga?.category_id ?? '',
+  )
+  const [description, setDescription] = useState(
+    movimiento?.description ?? precarga?.description ?? '',
+  )
+
+  const dudosos = new Set(precarga?.camposDudosos ?? [])
   const [errores, setErrores] = useState<ErroresDeFormulario>({
     general: null,
     porCampo: {},
@@ -113,6 +138,9 @@ export function TransactionForm({ movimiento, onListo }: TransactionFormProps) {
         <option value="INCOME">Ingreso</option>
       </SelectField>
 
+      {/* El aviso de campo dudoso va como `hint` y no como error: el valor es
+          usable, solo que el lector no estaba seguro. Marcarlo como error
+          impediría distinguirlo de una validación que falló de verdad. */}
       <FormField
         id="mov-monto"
         label="Monto"
@@ -122,6 +150,7 @@ export function TransactionForm({ movimiento, onListo }: TransactionFormProps) {
         min="0.01"
         value={amount}
         onChange={(evento) => setAmount(evento.target.value)}
+        hint={dudosos.has('amount') ? 'El lector no estaba seguro. Revisalo.' : undefined}
         error={errores.porCampo.amount}
         required
       />
@@ -132,6 +161,7 @@ export function TransactionForm({ movimiento, onListo }: TransactionFormProps) {
         type="date"
         value={occurredOn}
         onChange={(evento) => setOccurredOn(evento.target.value)}
+        hint={dudosos.has('occurred_on') ? 'El lector no estaba seguro. Revisala.' : undefined}
         error={errores.porCampo.occurred_on}
         required
       />

@@ -90,6 +90,17 @@ interface OpcionesDeRequest {
   anonymous?: boolean
 }
 
+/**
+ * `true` si el cuerpo lo tiene que serializar el navegador y no nosotros.
+ *
+ * Con `FormData` hay que dejar que el navegador ponga el `Content-Type`: lleva
+ * el `boundary` que separa las partes, y ponerlo a mano lo omite y el backend
+ * no puede parsear nada.
+ */
+function esFormulario(body: unknown): body is FormData {
+  return typeof FormData !== 'undefined' && body instanceof FormData
+}
+
 function construirUrl(path: string, params?: OpcionesDeRequest['params']): string {
   const url = `${BASE_URL}${path}`
   if (!params) return url
@@ -105,16 +116,28 @@ function construirUrl(path: string, params?: OpcionesDeRequest['params']): strin
 
 async function ejecutar(path: string, opciones: OpcionesDeRequest): Promise<Response> {
   const headers: Record<string, string> = {}
-  if (opciones.body !== undefined) headers['Content-Type'] = 'application/json'
+  const formulario = esFormulario(opciones.body)
+  if (opciones.body !== undefined && !formulario) {
+    headers['Content-Type'] = 'application/json'
+  }
 
   const token = getAccessToken()
   if (!opciones.anonymous && token) headers.Authorization = `Bearer ${token}`
+
+  // El guard se llama en línea y no se reusa `formulario`: TypeScript estrecha
+  // el tipo por la llamada, no por un booleano guardado antes.
+  let cuerpo: BodyInit | undefined
+  if (esFormulario(opciones.body)) {
+    cuerpo = opciones.body
+  } else if (opciones.body !== undefined) {
+    cuerpo = JSON.stringify(opciones.body)
+  }
 
   try {
     return await fetch(construirUrl(path, opciones.params), {
       method: opciones.method ?? 'GET',
       headers,
-      body: opciones.body === undefined ? undefined : JSON.stringify(opciones.body),
+      body: cuerpo,
     })
   } catch {
     throw new NetworkError()

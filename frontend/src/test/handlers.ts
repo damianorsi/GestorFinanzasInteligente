@@ -9,6 +9,7 @@ import type {
   MonthlyTrend,
   Occurrence,
   PeriodSummary,
+  ReceiptDraft,
   RecurringRule,
   TokenResponse,
   Transaction,
@@ -64,6 +65,7 @@ interface Store {
   /** Ocurrencias por `rule_id`. */
   ocurrencias: Record<number, Occurrence[]>
   vencimientos: UpcomingSummary
+  borradorDeTicket: ReceiptDraft
 }
 
 function estadoInicial(): Store {
@@ -198,6 +200,19 @@ function estadoInicial(): Store {
       ],
       projected_income: '0.00',
       projected_expense: '45000.00',
+    },
+    borradorDeTicket: {
+      scan_id: 500,
+      amount: '12345.67',
+      occurred_on: '2026-08-03',
+      merchant: 'Supermercado Día',
+      currency: 'ARS',
+      category_id: 20,
+      category_name: 'Alimentación',
+      // La fecha vino con poca confianza: la pantalla tiene que marcarla.
+      confidence: { amount: 0.95, occurred_on: 0.4 },
+      low_confidence_fields: ['occurred_on'],
+      possible_duplicates: [],
     },
   }
 }
@@ -415,6 +430,12 @@ export const handlers = [
       { status: 201 },
     )
   }),
+
+  /*
+   * Lectura de tickets. El borrador viene fijo: lo que se prueba es que la
+   * pantalla lo muestre y lo lleve al formulario, no que el modelo lea bien.
+   */
+  http.post(`${BASE}/receipts/scan`, () => HttpResponse.json(store.borradorDeTicket)),
 
   /*
    * Reglas recurrentes. `next_dates` lo calcula el backend, así que el doble

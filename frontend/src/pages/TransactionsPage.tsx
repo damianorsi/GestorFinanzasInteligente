@@ -4,6 +4,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Cargando, ErrorVisible, SinDatos } from '@/components/Feedback'
 import { Modal } from '@/components/Modal'
 import { useCategorias } from '@/features/categories/api'
+import { ReceiptScanner } from '@/features/receipts/ReceiptScanner'
 import { TransactionFilters } from '@/features/transactions/TransactionFilters'
 import { TransactionForm } from '@/features/transactions/TransactionForm'
 import {
@@ -13,6 +14,7 @@ import {
   useMovimientos,
 } from '@/features/transactions/api'
 import type { FiltrosDeMovimientos } from '@/features/transactions/api'
+import type { PrecargaDeMovimiento } from '@/features/transactions/TransactionForm'
 import type { Transaction } from '@/types/api'
 import { aErroresDeFormulario } from '@/utils/apiErrors'
 import { formatDate, formatMoney } from '@/utils/format'
@@ -25,6 +27,10 @@ export function TransactionsPage() {
   const [enFormulario, setEnFormulario] = useState<Transaction | 'nuevo' | null>(null)
   const [aBorrar, setABorrar] = useState<Transaction | null>(null)
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
+  const [escaneando, setEscaneando] = useState(false)
+  // Lo que dejó la lectura del ticket para precargar el alta. Se limpia al
+  // abrir un alta manual, o quedaría arrastrando datos del ticket anterior.
+  const [precarga, setPrecarga] = useState<PrecargaDeMovimiento | undefined>(undefined)
 
   const movimientos = useMovimientos(filtros, { offset, limit: POR_PAGINA })
   const categorias = useCategorias()
@@ -95,8 +101,18 @@ export function TransactionsPage() {
           </span>
           <button
             type="button"
+            className="boton boton--secundario"
+            onClick={() => setEscaneando(true)}
+          >
+            Escanear ticket
+          </button>
+          <button
+            type="button"
             className="boton boton--primario"
-            onClick={() => setEnFormulario('nuevo')}
+            onClick={() => {
+              setPrecarga(undefined)
+              setEnFormulario('nuevo')
+            }}
           >
             Nuevo movimiento
           </button>
@@ -234,6 +250,31 @@ export function TransactionsPage() {
       )}
 
       <Modal
+        titulo="Escanear ticket"
+        abierto={escaneando}
+        onCerrar={() => setEscaneando(false)}
+      >
+        {escaneando && (
+          <ReceiptScanner
+            onCancelar={() => setEscaneando(false)}
+            onConfirmar={(borrador) => {
+              // El borrador precarga el alta de siempre. Acá no se crea nada:
+              // la persona todavía puede corregir cualquier campo y cancelar.
+              setPrecarga({
+                amount: borrador.amount,
+                occurred_on: borrador.occurred_on,
+                category_id: borrador.category_id,
+                description: borrador.merchant,
+                camposDudosos: borrador.low_confidence_fields,
+              })
+              setEscaneando(false)
+              setEnFormulario('nuevo')
+            }}
+          />
+        )}
+      </Modal>
+
+      <Modal
         titulo={enFormulario === 'nuevo' ? 'Nuevo movimiento' : 'Editar movimiento'}
         abierto={enFormulario !== null}
         onCerrar={() => setEnFormulario(null)}
@@ -241,6 +282,7 @@ export function TransactionsPage() {
         {enFormulario !== null && (
           <TransactionForm
             movimiento={enFormulario === 'nuevo' ? undefined : enFormulario}
+            precarga={enFormulario === 'nuevo' ? precarga : undefined}
             onListo={() => setEnFormulario(null)}
           />
         )}

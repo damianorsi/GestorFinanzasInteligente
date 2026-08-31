@@ -199,3 +199,25 @@ export interface UpcomingSummary {
   projected_income: string
   projected_expense: string
 }
+
+/**
+ * Borrador propuesto a partir de la foto de un ticket.
+ *
+ * **No es un movimiento y no se creó nada**: precarga el formulario de alta, y
+ * la creación sigue pasando por `POST /transactions` (docs/PROMPT.md §21.1).
+ */
+export interface ReceiptDraft {
+  scan_id: number
+  amount: string | null
+  occurred_on: string
+  merchant: string | null
+  currency: string
+  category_id: number | null
+  category_name: string | null
+  /** Confianza de 0 a 1 por campo leído. */
+  confidence: Record<string, number>
+  /** Campos que el modelo leyó con dudas; hay que revisarlos antes de confirmar. */
+  low_confidence_fields: string[]
+  /** Movimientos del mismo monto y fecha que ya existen. No bloquea el alta. */
+  possible_duplicates: number[]
+}

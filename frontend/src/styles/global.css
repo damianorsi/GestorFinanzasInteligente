@@ -1252,3 +1252,59 @@ h2 {
 .pagina--con-fab {
   padding-bottom: 5rem;
 }
+
+/* --- Escaner de tickets ---------------------------------------------------- */
+.escaner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio);
+}
+
+.escaner__ayuda {
+  margin: 0;
+  color: var(--color-texto-suave);
+  font-size: 0.9rem;
+}
+
+.escaner__entrada {
+  padding: 0.6rem;
+  border: 1px dashed var(--color-borde);
+  border-radius: var(--radio);
+  background: var(--color-superficie);
+  color: var(--color-texto);
+  font: inherit;
+  width: 100%;
+}
+
+.escaner__lectura {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.4rem 1rem;
+  margin: 0;
+  padding: var(--espacio);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  background: var(--color-superficie);
+}
+
+.escaner__lectura dt {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-texto-suave);
+  align-self: center;
+}
+
+.escaner__dato {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+/* Los campos que el lector no leyó con seguridad se distinguen a la vista.
+   Esconder la duda es lo que hace que alguien confirme un monto equivocado. */
+.escaner__dato--dudoso {
+  color: var(--color-alerta);
+}
