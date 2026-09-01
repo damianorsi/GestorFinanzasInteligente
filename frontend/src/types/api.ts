@@ -221,3 +221,25 @@ export interface ReceiptDraft {
   /** Movimientos del mismo monto y fecha que ya existen. No bloquea el alta. */
   possible_duplicates: number[]
 }
+
+export type AlertType = 'BUDGET_EXCEEDED' | 'BUDGET_AT_RISK' | 'UNBUDGETED_SPENDING'
+export type AlertStatus = 'OPEN' | 'READ' | 'RESOLVED'
+
+/**
+ * Desvío presupuestario detectado por el job diario.
+ *
+ * `recommendation` viene en null cuando el proveedor del modelo no respondió:
+ * la alerta se emite igual, porque saber que te estás pasando no depende de
+ * eso (docs/PROMPT.md §21.2).
+ */
+export interface BudgetAlert {
+  id: number
+  category_id: number
+  period_month: string
+  type: AlertType
+  status: AlertStatus
+  message: string
+  recommendation: string | null
+  /** Solo en las de riesgo: qué porcentaje del tope proyecta consumir el mes. */
+  projected_percentage: string | null
+}

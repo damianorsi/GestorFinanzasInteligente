@@ -1308,3 +1308,145 @@ h2 {
 .escaner__dato--dudoso {
   color: var(--color-alerta);
 }
+
+/* --- Alertas --------------------------------------------------------------- */
+.layout__contador {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  margin-left: 0.35rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--color-error);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.filtro-de-alertas {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: var(--espacio);
+  flex-wrap: wrap;
+}
+
+.filtro-de-alertas__opcion {
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-borde);
+  background: var(--color-superficie);
+  color: var(--color-texto);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.filtro-de-alertas__opcion--activa {
+  background: color-mix(in srgb, var(--color-primario) 14%, transparent);
+  border-color: var(--color-primario);
+  color: var(--color-primario);
+  font-weight: 600;
+}
+
+.alertas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.alerta {
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-left: 4px solid var(--color-alerta);
+  border-radius: var(--radio);
+  padding: var(--espacio);
+}
+
+/* Haberse pasado ya es distinto de ir camino a pasarse: se distingue de un
+   vistazo, sin tener que leer el texto. */
+.alerta--severa {
+  border-left-color: var(--color-error);
+}
+
+.alerta--resuelta {
+  opacity: 0.65;
+  border-left-color: var(--color-ok);
+}
+
+.alerta__cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.alerta__periodo {
+  font-size: 0.85rem;
+  color: var(--color-texto-suave);
+}
+
+.alerta__punto {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-error);
+}
+
+.alerta__mensaje {
+  margin: 0;
+  font-weight: 600;
+}
+
+.alerta__proyeccion {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: var(--color-texto-suave);
+}
+
+/* La aclaracion de que es un ritmo y no una prediccion no es letra chica
+   decorativa: presentar una regla de tres como prediccion de IA seria
+   exactamente lo que la especificacion pide no hacer. */
+.alerta__aclaracion {
+  display: block;
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+.alerta__recomendacion {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border-radius: var(--radio);
+  background: color-mix(in srgb, var(--color-primario) 8%, transparent);
+}
+
+.alerta__recomendacion-titulo {
+  margin: 0 0 0.25rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-texto-suave);
+}
+
+.alerta__recomendacion-texto {
+  margin: 0;
+}
+
+.alerta__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+@media (max-width: 52rem) {
+  .alerta__acciones .boton {
+    flex: 1 1 45%;
+  }
+}

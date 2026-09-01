@@ -2,6 +2,7 @@ import { HttpResponse, http } from 'msw'
 
 import type {
   Budget,
+  BudgetAlert,
   BudgetProgress,
   Category,
   CategoryBreakdown,
@@ -66,6 +67,7 @@ interface Store {
   ocurrencias: Record<number, Occurrence[]>
   vencimientos: UpcomingSummary
   borradorDeTicket: ReceiptDraft
+  alertas: BudgetAlert[]
 }
 
 function estadoInicial(): Store {
@@ -214,6 +216,40 @@ function estadoInicial(): Store {
       low_confidence_fields: ['occurred_on'],
       possible_duplicates: [],
     },
+    alertas: [
+      {
+        id: 700,
+        category_id: 20,
+        period_month: '2026-08',
+        type: 'BUDGET_EXCEEDED',
+        status: 'OPEN',
+        message: 'Te pasaste del presupuesto de Alimentación: gastaste 130000.00 ARS de 100000.00 ARS.',
+        recommendation: 'Bajá las compras grandes por dos semanas y cociná en casa.',
+        projected_percentage: null,
+      },
+      {
+        id: 701,
+        category_id: 21,
+        period_month: '2026-08',
+        type: 'BUDGET_AT_RISK',
+        status: 'OPEN',
+        message: 'Vas camino a pasarte del presupuesto de Ocio.',
+        // Sin recomendación: el proveedor no respondió y la alerta se emitió
+        // igual. La pantalla tiene que manejarlo.
+        recommendation: null,
+        projected_percentage: '186.00',
+      },
+      {
+        id: 702,
+        category_id: 22,
+        period_month: '2026-07',
+        type: 'UNBUDGETED_SPENDING',
+        status: 'RESOLVED',
+        message: 'Gastaste 40000.00 ARS en Transporte y esa categoría no tenía presupuesto.',
+        recommendation: null,
+        projected_percentage: null,
+      },
+    ],
   }
 }
 
@@ -429,6 +465,28 @@ export const handlers = [
       },
       { status: 201 },
     )
+  }),
+
+  // --- Alertas -------------------------------------------------------------
+  http.get(`${BASE}/alerts`, ({ request }) => {
+    const status = new URL(request.url).searchParams.get('status')
+    if (status === null) return HttpResponse.json(store.alertas)
+    return HttpResponse.json(store.alertas.filter((a) => a.status === status))
+  }),
+
+  http.patch(`${BASE}/alerts/:id`, async ({ params, request }) => {
+    const cuerpo = (await request.json()) as { read: boolean }
+    const alerta = store.alertas.find((a) => a.id === Number(params.id))
+    if (!alerta) return new HttpResponse(null, { status: 404 })
+    if (!cuerpo.read) {
+      // El backend valida `Literal[True]`: no existe "desleer".
+      return HttpResponse.json(
+        { code: 'validation_error', message: 'read debe ser true.', details: [] },
+        { status: 422 },
+      )
+    }
+    if (alerta.status === 'OPEN') alerta.status = 'READ'
+    return HttpResponse.json(alerta)
   }),
 
   /*

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
+import { useAlertasSinLeer } from '@/features/alerts/api'
 import { useAuth } from '@/features/auth/useAuth'
 
 const SECCIONES = [
@@ -8,6 +9,7 @@ const SECCIONES = [
   { to: '/transactions', etiqueta: 'Movimientos' },
   { to: '/categories', etiqueta: 'Categorías' },
   { to: '/budgets', etiqueta: 'Presupuestos' },
+  { to: '/alerts', etiqueta: 'Alertas' },
   { to: '/reports', etiqueta: 'Reportes' },
   { to: '/recurring', etiqueta: 'Recurrentes' },
   { to: '/chat', etiqueta: 'Asistente' },
@@ -17,6 +19,7 @@ const ID_DEL_MENU = 'menu-principal'
 
 export function AppLayout() {
   const { usuario, cerrarSesion } = useAuth()
+  const sinLeer = useAlertasSinLeer()
   const [abierto, setAbierto] = useState(false)
   const { pathname } = useLocation()
   const botonRef = useRef<HTMLButtonElement>(null)
@@ -83,6 +86,23 @@ export function AppLayout() {
                 }
               >
                 {seccion.etiqueta}
+                {/*
+                  El contador es lo que hace que una alerta te encuentre a vos
+                  en vez de esperar a que la vayas a buscar. Sin esto, la
+                  feature sería tan pasiva como la pantalla de presupuestos.
+
+                  El número va `aria-hidden` y al lado se pone el texto
+                  completo: un lector de pantalla leyendo "Alertas 2" no dice
+                  qué son esos dos.
+                */}
+                {seccion.to === '/alerts' && sinLeer > 0 && (
+                  <>
+                    <span className="layout__contador" aria-hidden="true">
+                      {sinLeer}
+                    </span>
+                    <span className="visualmente-oculto">{sinLeer} sin leer</span>
+                  </>
+                )}
               </NavLink>
             ))}
           </div>

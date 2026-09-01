@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import { AppLayout } from '@/layout/AppLayout'
+import { AlertsPage } from '@/pages/AlertsPage'
 import { BudgetsPage } from '@/pages/BudgetsPage'
 import { CategoriesPage } from '@/pages/CategoriesPage'
 import { ChatPage } from '@/pages/ChatPage'
@@ -29,6 +30,7 @@ export function App() {
           <Route path="/transactions" element={<TransactionsPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/budgets" element={<BudgetsPage />} />
+          <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/recurring" element={<RecurringPage />} />
           <Route path="/chat" element={<ChatPage />} />
