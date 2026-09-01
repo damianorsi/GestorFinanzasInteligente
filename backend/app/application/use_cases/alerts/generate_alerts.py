@@ -299,5 +299,16 @@ class GenerateBudgetAlerts:
 
 
 def _con_moneda(monto: Money) -> str:
-    """Todo monto se emite con su moneda al lado, igual que en el asistente."""
-    return f"{monto.amount} {monto.currency}"
+    """Monto listo para leer, con su moneda al lado.
+
+    A diferencia del formato que reciben las tools del asistente, este texto se
+    muestra tal cual en pantalla: `43500.00 ARS` al lado de un `$ 43.500,00`
+    del resto de la app se lee como un dato crudo que se escapó.
+
+    Se agrupan los miles con punto y se separan los decimales con coma, como en
+    es-AR. La moneda va como código y no como símbolo porque el backend no
+    tiene un mapa de símbolos y no corresponde inventarlo acá.
+    """
+    entero, _, decimales = f"{monto.amount:.2f}".partition(".")
+    signo, digitos = ("-", entero[1:]) if entero.startswith("-") else ("", entero)
+    return f"{signo}{f'{int(digitos):,}'.replace(',', '.')},{decimales} {monto.currency}"

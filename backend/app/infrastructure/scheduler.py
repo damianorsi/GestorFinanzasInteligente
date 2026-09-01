@@ -201,6 +201,9 @@ def iniciar_scheduler(settings: Settings) -> AsyncIOScheduler | None:
     return scheduler
 
 
+_JOBS_A_MANO = frozenset({"recurrentes", "alertas"})
+
+
 async def _correr_a_mano(cual: str) -> None:
     """Una corrida puntual desde la línea de comandos.
 
@@ -215,6 +218,11 @@ async def _correr_a_mano(cual: str) -> None:
     un `RuntimeError: Event loop is closed` que no significa nada.
     """
     settings = get_settings()
+    if cual not in _JOBS_A_MANO:
+        # Sin esto, un typo (`alerts` por `alertas`) cae en el `else` y corre el
+        # job equivocado: pedís alertas y te genera movimientos recurrentes.
+        opciones = ", ".join(sorted(_JOBS_A_MANO))
+        raise SystemExit(f"Job desconocido: «{cual}». Opciones: {opciones}.")
     if cual == "alertas":
         await ejecutar_alertas(settings)
         if estado.ultimo_error_de_alertas is None:

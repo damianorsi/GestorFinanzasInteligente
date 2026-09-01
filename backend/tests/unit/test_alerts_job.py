@@ -154,6 +154,19 @@ class TestDeteccion:
         assert alerta.projected_percentage == Decimal("186.00")
         assert "186.00%" in alerta.message
 
+    async def test_los_montos_del_mensaje_se_leen_como_plata(self, escenario: _Escenario) -> None:
+        # Arrange
+        escenario.con_presupuesto(tope="100000.00", gastado="130000.50")
+
+        # Act
+        await escenario.caso.execute(HOY)
+
+        # Assert: el mensaje se muestra tal cual en pantalla, al lado de montos
+        # que la app formatea. Un `130000.50 ARS` ahí se lee como un dato crudo.
+        alerta = escenario.alertas.alertas[0]
+        assert "130.000,50 ARS" in alerta.message
+        assert "100.000,00 ARS" in alerta.message
+
     async def test_un_presupuesto_sano_no_genera_nada(self, escenario: _Escenario) -> None:
         # Arrange: 20.000 de 100.000 al día 10 proyecta 62%.
         escenario.con_presupuesto(tope="100000.00", gastado="20000.00")
