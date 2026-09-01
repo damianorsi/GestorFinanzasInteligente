@@ -1,11 +1,7 @@
-import type { GoalStatus, SavingsGoalProgress, SavingsProjection } from '@/types/api'
+import type { SavingsGoalProgress, SavingsProjection } from '@/types/api'
 import { formatDate, formatMoney, formatPercent } from '@/utils/format'
 
-const ETIQUETA_DE_ESTADO: Record<GoalStatus, string> = {
-  ON_TRACK: 'En camino',
-  AT_RISK: 'Vas tarde',
-  ACHIEVED: 'Alcanzada',
-}
+import { ETIQUETA_DE_ESTADO } from './estados'
 
 const TOPE_VISUAL = 100
 

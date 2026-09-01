@@ -245,3 +245,72 @@ describe('Metas: ABM', () => {
     expect(await screen.findByText(/los movimientos no se tocan/i)).toBeVisible()
   })
 })
+
+describe('DashboardPage: resumen de metas', () => {
+  beforeEach(conSesion)
+
+  async function abrirDashboard() {
+    renderConProviders(<App />, { ruta: '/dashboard' })
+    await screen.findByRole('heading', { name: /hola, damián/i })
+  }
+
+  function seccionDeMetas() {
+    return screen
+      .getByRole('heading', { name: /metas de ahorro/i })
+      .closest('div') as HTMLElement
+  }
+
+  it('muestra cuánto llevás juntado de cada meta', async () => {
+    // Arrange / Act
+    await abrirDashboard()
+    await screen.findByRole('heading', { name: /metas de ahorro/i })
+
+    // Assert
+    const seccion = within(seccionDeMetas())
+    expect(seccion.getByText('Viaje')).toBeVisible()
+    expect(seccion.getByText(/25,0% · faltan \$ 1\.500\.000,00/)).toBeVisible()
+  })
+
+  it('no trae la fecha estimada al dashboard', async () => {
+    // Arrange / Act
+    await abrirDashboard()
+    await screen.findByRole('heading', { name: /metas de ahorro/i })
+
+    // Assert: la estimación vive donde entra su aclaración. Traer el "te
+    // faltan 6 meses" sin el "promedio de N meses" al lado convertiría una
+    // regla de tres en una predicción.
+    const seccion = within(seccionDeMetas())
+    expect(seccion.queryByText(/te faltan 6 meses/i)).not.toBeInTheDocument()
+    expect(seccion.queryByText(/no una predicción/i)).not.toBeInTheDocument()
+  })
+
+  it('sin estado no inventa una etiqueta', async () => {
+    // Arrange / Act
+    await abrirDashboard()
+    await screen.findByRole('heading', { name: /metas de ahorro/i })
+
+    // Assert: "Colchón" no tiene historial suficiente, así que no se le puede
+    // poner ni "En camino" ni "Vas tarde".
+    const fila = within(seccionDeMetas()).getByText('Colchón').closest('li') as HTMLElement
+    expect(within(fila).queryByText(/en camino|vas tarde|alcanzada/i)).not.toBeInTheDocument()
+    // La que sí tiene estado lo muestra.
+    const otra = within(seccionDeMetas()).getByText('Viaje').closest('li') as HTMLElement
+    expect(within(otra).getByText(/vas tarde/i)).toBeVisible()
+  })
+
+  it('no muestra la sección si no hay metas', async () => {
+    // Arrange
+    store.avanceDeMetas = []
+
+    // Act
+    await abrirDashboard()
+
+    // Assert: un dashboard lleno de secciones vacías esconde las que sí
+    // tienen algo.
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('heading', { name: /metas de ahorro/i }),
+      ).not.toBeInTheDocument(),
+    )
+  })
+})

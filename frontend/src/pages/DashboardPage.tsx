@@ -14,6 +14,7 @@ import {
   useTendenciaMensual,
 } from '@/features/reports/api'
 import { useProximosVencimientos } from '@/features/recurring/api'
+import { GoalsSummary } from '@/features/savings/GoalsSummary'
 import { formatDate, formatMoney, isNegative } from '@/utils/format'
 import { periodoActual } from '@/utils/periods'
 
@@ -140,6 +141,8 @@ export function DashboardPage() {
           </p>
         </div>
       )}
+
+      <GoalsSummary />
 
       {tendencia.isSuccess && (
         <MonthlyTrendChartLazy
