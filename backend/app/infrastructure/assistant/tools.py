@@ -31,6 +31,7 @@ from app.application.use_cases.reports import (
     GetMonthlyTrend,
     GetPeriodSummary,
 )
+from app.application.use_cases.savings import GetSavingsGoalsProgress
 from app.application.use_cases.transactions import ListTransactions
 from app.domain.enums import TransactionType
 from app.domain.value_objects import Money
@@ -49,6 +50,7 @@ class DependenciasDelAsistente:
     presupuestos: GetBudgetProgress
     movimientos: ListTransactions
     reglas: RecurringRuleRepository
+    metas: GetSavingsGoalsProgress
     default_currency: str
 
 
@@ -111,6 +113,10 @@ class DosPeriodos(BaseModel):
 
 class MesDePresupuesto(BaseModel):
     period_month: str = Field(description="Mes en formato AAAA-MM.")
+
+
+class SinArgumentos(BaseModel):
+    """Las metas del usuario no se filtran por nada: son pocas y son todas suyas."""
 
 
 class VentanaDeDias(BaseModel):
@@ -288,6 +294,50 @@ def construir_herramientas(user_id: int, deps: DependenciasDelAsistente) -> list
             "no está disponible."
         )
 
+    async def metas_de_ahorro() -> str:
+        avances = await deps.metas.execute(user_id)
+        if not avances:
+            return "No hay metas de ahorro definidas."
+
+        lineas: list[str] = []
+        for avance in avances:
+            linea = (
+                f"- {avance.name}: juntó {_monto(avance.saved)} de {_monto(avance.target)} "
+                f"({avance.percentage}%), desde {avance.starts_on.isoformat()}"
+            )
+            if avance.target_date is not None:
+                linea += f", fecha objetivo {avance.target_date.isoformat()}"
+            if avance.status is not None:
+                linea += f", estado {avance.status}"
+            if avance.projection is None:
+                # Que el modelo no complete el hueco con una estimación propia.
+                linea += (
+                    ". SIN PROYECCIÓN: hay menos de dos meses cerrados de historial. "
+                    "No estimes una fecha vos: decí que faltan datos."
+                )
+            elif avance.projection.months_to_target is None:
+                linea += (
+                    f". Al ritmo actual ({_monto(avance.projection.monthly_rate)} por mes, "
+                    f"promedio de {avance.projection.months_of_history} meses) NO se alcanza."
+                )
+            else:
+                linea += (
+                    f". Al ritmo actual ({_monto(avance.projection.monthly_rate)} por mes, "
+                    f"promedio de {avance.projection.months_of_history} meses) faltan "
+                    f"{avance.projection.months_to_target} meses"
+                )
+                if avance.projection.projected_date is not None:
+                    linea += f", alrededor de {avance.projection.projected_date.isoformat()}"
+                linea += "."
+            lineas.append(linea)
+
+        return (
+            "Metas de ahorro:\n"
+            + "\n".join(lineas)
+            + "\nEl ritmo es el balance mensual promedio, NO una predicción: "
+            "presentalo como tal."
+        )
+
     return [
         StructuredTool.from_function(
             coroutine=resumen_del_periodo,
@@ -352,5 +402,15 @@ def construir_herramientas(user_id: int, deps: DependenciasDelAsistente) -> list
                 "fijos me quedan» o «me alcanza para fin de mes»."
             ),
             args_schema=VentanaDeDias,
+        ),
+        StructuredTool.from_function(
+            coroutine=metas_de_ahorro,
+            name="get_savings_goals",
+            description=(
+                "Metas de ahorro con su avance y, si hay historial, en cuántos meses se "
+                "alcanzan al ritmo actual. Usala para «¿voy a llegar a mi meta?». Devuelve "
+                "la misma cifra que muestra la pantalla: no recalcules por tu cuenta."
+            ),
+            args_schema=SinArgumentos,
         ),
     ]

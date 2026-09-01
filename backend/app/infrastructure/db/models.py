@@ -433,6 +433,39 @@ class ReceiptScanModel(Base):
     )
 
 
+# ---------------------------------------------------------------------------
+# Metas de ahorro
+# ---------------------------------------------------------------------------
+class SavingsGoalModel(TimestampMixin, Base):
+    """Objetivo de ahorro con su fecha de inicio.
+
+    No hay tabla de aportes: el producto no maneja cuentas, y el avance se
+    calcula contra el balance acumulado desde `starts_on` (docs/PROMPT.md
+    §21.3). Guardar aportes sueltos duplicaría movimientos que ya existen.
+
+    `is_active` entra en el índice porque la consulta que importa —el avance
+    de la pantalla— pide solo las activas.
+    """
+
+    __tablename__ = "savings_goals"
+    __table_args__ = (
+        Index("ix_savings_goals_user_active", "user_id", "is_active"),
+        _OPCIONES_MYSQL,
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    target_amount: Mapped[Decimal] = _columna_monto()
+    currency: Mapped[str] = _columna_moneda()
+    starts_on: Mapped[date] = mapped_column(Date, nullable=False)
+    # Nullable: hay metas sin fecha, y sin fecha no existe llegar tarde.
+    target_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("1"))
+
+
 __all__ = [
     "BudgetAlertModel",
     "BudgetModel",
@@ -443,6 +476,7 @@ __all__ = [
     "RecurringOccurrenceModel",
     "RecurringRuleModel",
     "RefreshTokenModel",
+    "SavingsGoalModel",
     "TransactionModel",
     "UserModel",
 ]

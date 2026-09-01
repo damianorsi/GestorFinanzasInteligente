@@ -32,6 +32,7 @@ from app.domain.entities import (
     Category,
     RecurringOccurrence,
     RecurringRule,
+    SavingsGoal,
     Transaction,
     User,
 )
@@ -716,3 +717,53 @@ class FakeRefreshTokenRepository:
         for huella, (uid, expira, revocado) in list(self._tokens.items()):
             if uid == user_id and revocado is None:
                 self._tokens[huella] = (uid, expira, now)
+
+
+class FakeSavingsGoalRepository:
+    """Metas en memoria, con la misma unicidad de nombre que valida el caso de uso."""
+
+    def __init__(self) -> None:
+        self.metas: list[SavingsGoal] = []
+        self._siguiente_id = 1
+
+    def agregar(self, meta: SavingsGoal) -> SavingsGoal:
+        if meta.id is None:
+            meta.id = self._siguiente_id
+            self._siguiente_id += 1
+        self.metas.append(meta)
+        return meta
+
+    async def create(self, goal: SavingsGoal) -> SavingsGoal:
+        return self.agregar(goal)
+
+    async def update(self, goal: SavingsGoal) -> SavingsGoal:
+        for indice, existente in enumerate(self.metas):
+            if existente.id == goal.id:
+                self.metas[indice] = goal
+                return goal
+        raise ValueError(f"La meta {goal.id} no existe.")
+
+    async def delete(self, user_id: int, goal_id: int) -> None:
+        self.metas = [m for m in self.metas if not (m.id == goal_id and m.user_id == user_id)]
+
+    async def get_for_user(self, user_id: int, goal_id: int) -> SavingsGoal | None:
+        return next((m for m in self.metas if m.id == goal_id and m.user_id == user_id), None)
+
+    async def list_for_user(
+        self, user_id: int, currency: str, only_active: bool = True
+    ) -> list[SavingsGoal]:
+        return [
+            m
+            for m in self.metas
+            if m.user_id == user_id
+            and m.target.currency == currency
+            and (not only_active or m.is_active)
+        ]
+
+    async def exists_with_name(
+        self, user_id: int, name: str, exclude_id: int | None = None
+    ) -> bool:
+        return any(
+            m.user_id == user_id and m.name.lower() == name.strip().lower() and m.id != exclude_id
+            for m in self.metas
+        )

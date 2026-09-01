@@ -23,6 +23,7 @@ from app.application.use_cases.reports import (
     GetMonthlyTrend,
     GetPeriodSummary,
 )
+from app.application.use_cases.savings import GetSavingsGoalsProgress
 from app.application.use_cases.transactions import ListTransactions
 from app.core.config import Settings, get_settings
 from app.infrastructure.assistant import DependenciasDelAsistente, LangChainAssistant
@@ -34,6 +35,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyRecurringOccurrenceRepository,
     SqlAlchemyRecurringRuleRepository,
     SqlAlchemyReportRepository,
+    SqlAlchemySavingsGoalRepository,
     SqlAlchemyTransactionRepository,
 )
 from app.infrastructure.db.session import dispose_engine, session_scope
@@ -128,6 +130,13 @@ async def ejecutar_alertas(settings: Settings) -> None:
                         ),
                         movimientos=ListTransactions(SqlAlchemyTransactionRepository(session)),
                         reglas=SqlAlchemyRecurringRuleRepository(session),
+                        metas=GetSavingsGoalsProgress(
+                            SqlAlchemySavingsGoalRepository(session),
+                            reportes,
+                            reloj,
+                            monedas,
+                            moneda,
+                        ),
                         default_currency=moneda,
                     ),
                     api_key=settings.openai_api_key,

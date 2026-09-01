@@ -45,6 +45,7 @@ from app.application.dtos.reports import (
     MonthlyTrend,
     PeriodSummary,
 )
+from app.application.dtos.savings import SavingsGoalProgress, SavingsProjection
 from app.application.dtos.transactions import (
     ORDEN_POR_DEFECTO,
     SortCriterion,
@@ -76,6 +77,8 @@ __all__ = [
     "PaginatedResult",
     "PeriodSummary",
     "ReceiptDraft",
+    "SavingsGoalProgress",
+    "SavingsProjection",
     "SkippedBudget",
     "SortCriterion",
     "SortDirection",

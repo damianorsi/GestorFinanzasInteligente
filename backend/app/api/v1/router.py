@@ -2,7 +2,7 @@
 
 Los routers de negocio se van sumando acá a medida que avanzan las fases:
 categories (4), transactions (5), reports (6), budgets (7), chat (10),
-recurring-rules (12).
+recurring-rules (12), alerts y savings-goals (§21).
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from app.api.v1.routers import (
     receipts,
     recurring_rules,
     reports,
+    savings_goals,
     transactions,
     users,
 )
@@ -31,5 +32,6 @@ api_router.include_router(reports.router)
 api_router.include_router(budgets.router)
 api_router.include_router(recurring_rules.router)
 api_router.include_router(alerts.router)
+api_router.include_router(savings_goals.router)
 api_router.include_router(receipts.router)
 api_router.include_router(chat.router)

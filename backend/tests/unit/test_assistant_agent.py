@@ -28,6 +28,7 @@ from app.application.use_cases.reports import (
     GetMonthlyTrend,
     GetPeriodSummary,
 )
+from app.application.use_cases.savings import GetSavingsGoalsProgress
 from app.application.use_cases.transactions import ListTransactions
 from app.domain.enums import ChatRole
 from app.domain.value_objects import Money
@@ -43,6 +44,7 @@ from tests.fakes import (
     FakeCategoryRepository,
     FakeRecurringRuleRepository,
     FakeReportRepository,
+    FakeSavingsGoalRepository,
     FakeTransactionRepository,
     FixedClock,
 )
@@ -136,6 +138,9 @@ def _dependencias(reports: FakeReportRepository | None = None) -> DependenciasDe
         ),
         movimientos=ListTransactions(FakeTransactionRepository()),
         reglas=FakeRecurringRuleRepository(),
+        metas=GetSavingsGoalsProgress(
+            FakeSavingsGoalRepository(), reportes, reloj, MONEDAS, MONEDA
+        ),
         default_currency=MONEDA,
     )
 
@@ -349,7 +354,9 @@ class TestAislamiento:
 
         # Assert: el modelo no tiene dónde poner "el usuario 2", así que ninguna
         # prompt injection puede pedir datos ajenos (docs/PROMPT.md §11).
-        assert len(argumentos) == 7
+        # El número está fijo a propósito: agregar una herramienta rompe este
+        # test y obliga a mirar sus argumentos antes de subirlo.
+        assert len(argumentos) == 8
         for nombre, campos in argumentos.items():
             assert not any("user" in campo for campo in campos), nombre
 

@@ -19,6 +19,9 @@ from app.infrastructure.db.repositories.refresh_token_repository import (
     SqlAlchemyRefreshTokenRepository,
 )
 from app.infrastructure.db.repositories.report_repository import SqlAlchemyReportRepository
+from app.infrastructure.db.repositories.savings_goal_repository import (
+    SqlAlchemySavingsGoalRepository,
+)
 from app.infrastructure.db.repositories.transaction_repository import (
     SqlAlchemyTransactionRepository,
 )
@@ -34,6 +37,7 @@ __all__ = [
     "SqlAlchemyRecurringRuleRepository",
     "SqlAlchemyRefreshTokenRepository",
     "SqlAlchemyReportRepository",
+    "SqlAlchemySavingsGoalRepository",
     "SqlAlchemyTransactionRepository",
     "SqlAlchemyUserRepository",
 ]

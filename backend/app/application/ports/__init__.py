@@ -13,6 +13,7 @@ from app.application.ports.recurring_occurrence_repository import RecurringOccur
 from app.application.ports.recurring_rule_repository import RecurringRuleRepository
 from app.application.ports.refresh_token_repository import RefreshTokenRepository
 from app.application.ports.report_repository import ReportRepository
+from app.application.ports.savings_goal_repository import SavingsGoalRepository
 from app.application.ports.token_service import TokenService
 from app.application.ports.transaction_repository import TransactionRepository
 from app.application.ports.user_repository import UserRepository
@@ -31,6 +32,7 @@ __all__ = [
     "RecurringRuleRepository",
     "RefreshTokenRepository",
     "ReportRepository",
+    "SavingsGoalRepository",
     "TokenService",
     "TransactionRepository",
     "UserRepository",

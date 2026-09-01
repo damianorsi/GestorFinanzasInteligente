@@ -30,6 +30,7 @@ from app.application.ports import (
     RecurringRuleRepository,
     RefreshTokenRepository,
     ReportRepository,
+    SavingsGoalRepository,
     TokenService,
     TransactionRepository,
     UserRepository,
@@ -69,6 +70,13 @@ from app.application.use_cases.reports import (
     GetMonthlyTrend,
     GetPeriodSummary,
 )
+from app.application.use_cases.savings import (
+    CreateSavingsGoal,
+    DeleteSavingsGoal,
+    GetSavingsGoalsProgress,
+    ListSavingsGoals,
+    UpdateSavingsGoal,
+)
 from app.application.use_cases.transactions import (
     CreateTransaction,
     DeleteTransaction,
@@ -95,6 +103,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyRecurringRuleRepository,
     SqlAlchemyRefreshTokenRepository,
     SqlAlchemyReportRepository,
+    SqlAlchemySavingsGoalRepository,
     SqlAlchemyTransactionRepository,
     SqlAlchemyUserRepository,
 )
@@ -371,6 +380,7 @@ def get_assistant_agent(
     budgets: Budgets,
     categories: Categories,
     transactions: Transactions,
+    goals: Goals,
     rules: Rules,
     clock: AppClock,
     settings: AppSettings,
@@ -390,6 +400,7 @@ def get_assistant_agent(
             presupuestos=GetBudgetProgress(budgets, categories, reports, monedas, moneda),
             movimientos=ListTransactions(transactions),
             reglas=rules,
+            metas=GetSavingsGoalsProgress(goals, reports, clock, monedas, moneda),
             default_currency=moneda,
         ),
         api_key=settings.openai_api_key,
@@ -555,3 +566,53 @@ async def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+# --- Metas de ahorro -------------------------------------------------------
+def get_savings_goal_repository(session: DbSession) -> SavingsGoalRepository:
+    return SqlAlchemySavingsGoalRepository(session)
+
+
+Goals = Annotated[SavingsGoalRepository, Depends(get_savings_goal_repository)]
+
+
+def _metas(
+    goals: SavingsGoalRepository, clock: Clock, settings: Settings
+) -> tuple[SavingsGoalRepository, Clock, frozenset[str], str]:
+    return (goals, clock, settings.supported_currencies_set, settings.default_currency)
+
+
+def get_list_savings_goals(
+    goals: Goals, clock: AppClock, settings: AppSettings
+) -> ListSavingsGoals:
+    return ListSavingsGoals(*_metas(goals, clock, settings))
+
+
+def get_create_savings_goal(
+    goals: Goals, clock: AppClock, settings: AppSettings
+) -> CreateSavingsGoal:
+    return CreateSavingsGoal(*_metas(goals, clock, settings))
+
+
+def get_update_savings_goal(
+    goals: Goals, clock: AppClock, settings: AppSettings
+) -> UpdateSavingsGoal:
+    return UpdateSavingsGoal(*_metas(goals, clock, settings))
+
+
+def get_delete_savings_goal(
+    goals: Goals, clock: AppClock, settings: AppSettings
+) -> DeleteSavingsGoal:
+    return DeleteSavingsGoal(*_metas(goals, clock, settings))
+
+
+def get_savings_goals_progress(
+    goals: Goals, reports: Reports, clock: AppClock, settings: AppSettings
+) -> GetSavingsGoalsProgress:
+    return GetSavingsGoalsProgress(
+        goals=goals,
+        reports=reports,
+        clock=clock,
+        supported_currencies=settings.supported_currencies_set,
+        default_currency=settings.default_currency,
+    )

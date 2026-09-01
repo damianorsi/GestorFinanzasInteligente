@@ -40,6 +40,10 @@ class InvalidBudgetError(DomainError):
     """Los datos del presupuesto no cumplen las reglas del dominio."""
 
 
+class InvalidSavingsGoalError(DomainError):
+    """Los datos de la meta de ahorro no cumplen las reglas del dominio."""
+
+
 class InvalidRecurringRuleError(DomainError):
     """Los datos de la regla recurrente no cumplen las reglas del dominio."""
 
@@ -51,6 +55,7 @@ __all__ = [
     "InvalidCategoryError",
     "InvalidMoneyError",
     "InvalidRecurringRuleError",
+    "InvalidSavingsGoalError",
     "InvalidTransactionError",
     "InvalidUserError",
 ]

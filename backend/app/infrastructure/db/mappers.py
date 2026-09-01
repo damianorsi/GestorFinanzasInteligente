@@ -16,6 +16,7 @@ from app.domain.entities import (
     Category,
     RecurringOccurrence,
     RecurringRule,
+    SavingsGoal,
     Transaction,
     User,
 )
@@ -26,6 +27,7 @@ from app.infrastructure.db.models import (
     CategoryModel,
     RecurringOccurrenceModel,
     RecurringRuleModel,
+    SavingsGoalModel,
     TransactionModel,
     UserModel,
 )
@@ -200,4 +202,28 @@ def alerta_a_modelo(entity: BudgetAlert) -> BudgetAlertModel:
         status=entity.status,
         recommendation=entity.recommendation,
         projected_percentage=entity.projected_percentage,
+    )
+
+
+def meta_a_dominio(model: SavingsGoalModel) -> SavingsGoal:
+    return SavingsGoal(
+        id=model.id,
+        user_id=model.user_id,
+        name=model.name,
+        target=Money(model.target_amount, model.currency),
+        starts_on=model.starts_on,
+        target_date=model.target_date,
+        is_active=model.is_active,
+    )
+
+
+def meta_a_modelo(entity: SavingsGoal) -> SavingsGoalModel:
+    return SavingsGoalModel(
+        user_id=entity.user_id,
+        name=entity.name,
+        target_amount=entity.target.amount,
+        currency=entity.target.currency,
+        starts_on=entity.starts_on,
+        target_date=entity.target_date,
+        is_active=entity.is_active,
     )

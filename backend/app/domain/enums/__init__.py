@@ -71,6 +71,20 @@ class AlertStatus(StrEnum):
     RESOLVED = "RESOLVED"
 
 
+class GoalStatus(StrEnum):
+    """Cómo viene una meta de ahorro (docs/PROMPT.md §21.3).
+
+    No hay un estado para «no se puede proyectar»: eso no es una propiedad de
+    la meta sino de los datos disponibles, y se informa aparte con los meses
+    de historial que se usaron.
+    """
+
+    ON_TRACK = "ON_TRACK"
+    # Al ritmo actual llega después de la fecha objetivo, o no llega nunca.
+    AT_RISK = "AT_RISK"
+    ACHIEVED = "ACHIEVED"
+
+
 class ReceiptScanStatus(StrEnum):
     """En qué terminó la lectura de un ticket.
 
@@ -96,6 +110,7 @@ __all__ = [
     "AlertType",
     "BudgetStatus",
     "ChatRole",
+    "GoalStatus",
     "OccurrenceStatus",
     "ReceiptScanStatus",
     "RecurrenceFrequency",

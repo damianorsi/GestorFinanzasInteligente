@@ -24,6 +24,7 @@ from app.application.use_cases.reports import (
     GetMonthlyTrend,
     GetPeriodSummary,
 )
+from app.application.use_cases.savings import GetSavingsGoalsProgress
 from app.application.use_cases.transactions import ListTransactions
 from app.domain.enums import RecurrenceFrequency, TransactionType
 from app.infrastructure.assistant.tools import DependenciasDelAsistente, construir_herramientas
@@ -33,6 +34,7 @@ from app.infrastructure.db.repositories import (
     SqlAlchemyCategoryRepository,
     SqlAlchemyRecurringRuleRepository,
     SqlAlchemyReportRepository,
+    SqlAlchemySavingsGoalRepository,
     SqlAlchemyTransactionRepository,
 )
 from app.infrastructure.db.session import get_session_factory
@@ -44,6 +46,7 @@ pytestmark = pytest.mark.integration
 TRANSACCIONES = "/api/v1/transactions"
 CATEGORIAS = "/api/v1/categories"
 PRESUPUESTOS = "/api/v1/budgets"
+METAS = "/api/v1/savings-goals"
 
 MONEDAS = frozenset({"ARS"})
 MONEDA = "ARS"
@@ -89,6 +92,9 @@ async def herramientas_de(user_id: int) -> AsyncIterator[dict[str, BaseTool]]:
             ),
             movimientos=ListTransactions(SqlAlchemyTransactionRepository(session)),
             reglas=SqlAlchemyRecurringRuleRepository(session),
+            metas=GetSavingsGoalsProgress(
+                SqlAlchemySavingsGoalRepository(session), reportes, reloj, MONEDAS, MONEDA
+            ),
             default_currency=MONEDA,
         )
         yield {
@@ -551,3 +557,73 @@ class TestAislamientoEntreUsuarios:
         # Assert
         assert "Alquiler ajeno" not in texto
         assert "No hay gastos fijos" in texto
+
+
+class TestMetasDeAhorro:
+    async def test_responde_con_la_misma_cifra_que_la_pantalla(
+        self, client: AsyncClient, cuenta: CuentaDePrueba
+    ) -> None:
+        # Arrange: dos meses cerrados de 200.000 antes de agosto.
+        await client.post(
+            METAS,
+            headers=cuenta.headers,
+            json={
+                "name": "Viaje",
+                "target_amount": "1000000.00",
+                "starts_on": "2026-05-01",
+            },
+        )
+        await _movimiento(client, cuenta, "Sueldo", "200000.00", "2026-05-10", tipo="INCOME")
+        await _movimiento(client, cuenta, "Sueldo", "200000.00", "2026-06-10", tipo="INCOME")
+
+        # Act
+        async with herramientas_de(cuenta.user_id) as tools:
+            texto = await tools["get_savings_goals"].ainvoke({})
+
+        # Assert: la tool sale del mismo caso de uso que el endpoint, así que
+        # el asistente no puede decir un número distinto al de la pantalla.
+        avance = (await client.get(f"{METAS}/progress", headers=cuenta.headers)).json()[0]
+        assert avance["saved"] == "400000.00"
+        assert "400000.00 ARS" in texto
+        assert "promedio de 2 meses" in texto
+
+    async def test_sin_historial_le_prohibe_estimar_al_modelo(
+        self, client: AsyncClient, cuenta: CuentaDePrueba
+    ) -> None:
+        # Arrange: un solo mes cerrado.
+        await client.post(
+            METAS,
+            headers=cuenta.headers,
+            json={
+                "name": "Viaje",
+                "target_amount": "1000000.00",
+                "starts_on": "2026-05-01",
+            },
+        )
+        await _movimiento(client, cuenta, "Sueldo", "200000.00", "2026-05-10", tipo="INCOME")
+
+        # Act
+        async with herramientas_de(cuenta.user_id) as tools:
+            texto = await tools["get_savings_goals"].ainvoke({})
+
+        # Assert: si solo dijera que falta la proyección, el modelo llenaría el
+        # hueco con una estimación propia.
+        assert "SIN PROYECCIÓN" in texto
+        assert "No estimes una fecha vos" in texto
+
+    async def test_las_metas_ajenas_no_aparecen(self, client: AsyncClient) -> None:
+        # Arrange
+        propia = await crear_cuenta(client, "damian@ejemplo.com")
+        ajena = await crear_cuenta(client, "otro@ejemplo.com")
+        await client.post(
+            METAS,
+            headers=propia.headers,
+            json={"name": "Viaje", "target_amount": "1000000.00"},
+        )
+
+        # Act
+        async with herramientas_de(ajena.user_id) as tools:
+            texto = await tools["get_savings_goals"].ainvoke({})
+
+        # Assert
+        assert "No hay metas de ahorro definidas." in texto
