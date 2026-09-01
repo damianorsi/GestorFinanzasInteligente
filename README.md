@@ -211,8 +211,14 @@ Plan de 14 fases (detalle en `docs/PROMPT.md` §18).
 - [x] **Fase 13 — Frontend recurrentes**: ABM de reglas con las próximas fechas a la vista, pausa/reactivación, historial de ocurrencias y vencimientos proyectados en el dashboard
 - [x] **Fase 14 — Cierre**: README, revisión de la OpenAPI y verificación end-to-end desde cero
 
-Las 14 fases están cerradas y los 12 casos de uso de `docs/PROMPT.md` §17 tienen tests
-que los respaldan.
+Extensiones con IA agregadas sobre el producto ya cerrado (`docs/PROMPT.md` §21):
+
+- [x] **Fase 15 — Lectura de tickets** (CU13): carga de la foto, extracción con modelo de visión, borrador que la persona confirma y cupo por hora
+- [x] **Fase 16 — Alertas proactivas** (CU14): segundo job del scheduler, detección con proyección, recomendación del agente y bandeja con contador de sin leer
+- [x] **Fase 17 — Metas de ahorro** (CU15): ABM, avance contra el balance acumulado, proyección sobre la tendencia real y tool `get_savings_goals`
+
+Las 14 fases del plan original están cerradas, las tres extensiones también, y los 15
+casos de uso de `docs/PROMPT.md` §17 tienen tests que los respaldan.
 
 ### Verificación de cierre
 

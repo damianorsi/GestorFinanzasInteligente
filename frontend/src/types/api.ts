@@ -243,3 +243,46 @@ export interface BudgetAlert {
   /** Solo en las de riesgo: qué porcentaje del tope proyecta consumir el mes. */
   projected_percentage: string | null
 }
+
+export type GoalStatus = 'ON_TRACK' | 'AT_RISK' | 'ACHIEVED'
+
+export interface SavingsGoal {
+  id: number
+  name: string
+  target_amount: string
+  currency: string
+  starts_on: string
+  target_date: string | null
+  is_active: boolean
+}
+
+/**
+ * La parte estimada del avance.
+ *
+ * Viene anidada y no aplanada a propósito: obliga a tener `months_of_history`
+ * a mano para poder mostrar la fecha, así que no se puede presentar una
+ * estimación sin decir sobre cuántos meses se calculó (docs/PROMPT.md §21.3).
+ */
+export interface SavingsProjection {
+  monthly_rate: string
+  months_of_history: number
+  /** Null cuando a ese ritmo no se llega nunca, o el horizonte es absurdo. */
+  months_to_target: number | null
+  projected_date: string | null
+}
+
+export interface SavingsGoalProgress {
+  goal_id: number
+  name: string
+  target: string
+  saved: string
+  remaining: string
+  percentage: string
+  currency: string
+  starts_on: string
+  target_date: string | null
+  /** Null cuando falta historial: "no sabemos" no es lo mismo que AT_RISK. */
+  status: GoalStatus | null
+  /** Null cuando hay menos de dos meses cerrados. Se dice, no se proyecta. */
+  projection: SavingsProjection | null
+}

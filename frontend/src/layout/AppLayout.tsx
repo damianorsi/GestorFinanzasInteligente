@@ -10,6 +10,7 @@ const SECCIONES = [
   { to: '/categories', etiqueta: 'Categorías' },
   { to: '/budgets', etiqueta: 'Presupuestos' },
   { to: '/alerts', etiqueta: 'Alertas' },
+  { to: '/savings-goals', etiqueta: 'Metas' },
   { to: '/reports', etiqueta: 'Reportes' },
   { to: '/recurring', etiqueta: 'Recurrentes' },
   { to: '/chat', etiqueta: 'Asistente' },

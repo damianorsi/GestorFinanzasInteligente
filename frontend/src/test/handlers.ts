@@ -1,5 +1,7 @@
 import { HttpResponse, http } from 'msw'
 
+import { periodoActual } from '@/utils/periods'
+
 import type {
   Budget,
   BudgetAlert,
@@ -12,6 +14,8 @@ import type {
   PeriodSummary,
   ReceiptDraft,
   RecurringRule,
+  SavingsGoal,
+  SavingsGoalProgress,
   TokenResponse,
   Transaction,
   UpcomingSummary,
@@ -68,6 +72,8 @@ interface Store {
   vencimientos: UpcomingSummary
   borradorDeTicket: ReceiptDraft
   alertas: BudgetAlert[]
+  metas: SavingsGoal[]
+  avanceDeMetas: SavingsGoalProgress[]
 }
 
 function estadoInicial(): Store {
@@ -100,7 +106,17 @@ function estadoInicial(): Store {
       },
     ],
     presupuestos: [
-      { id: 200, category_id: 20, period_month: '2026-08', amount: '100000.00', currency: 'ARS' },
+      // El período sale del reloj y no de un literal: `BudgetsPage` abre en el
+      // mes actual, así que una semilla fija solo coincide durante ese mes y
+      // los tests que dependen de "esta categoría ya tiene tope" se rompen
+      // solos cuando cambia el calendario.
+      {
+        id: 200,
+        category_id: 20,
+        period_month: periodoActual(),
+        amount: '100000.00',
+        currency: 'ARS',
+      },
     ],
     desglose: {
       currency: 'ARS',
@@ -134,7 +150,7 @@ function estadoInicial(): Store {
     },
     progreso: {
       currency: 'ARS',
-      period_month: '2026-08',
+      period_month: periodoActual(),
       entries: [
         {
           budget_id: 200,
@@ -248,6 +264,61 @@ function estadoInicial(): Store {
         message: 'Gastaste 40000.00 ARS en Transporte y esa categoría no tenía presupuesto.',
         recommendation: null,
         projected_percentage: null,
+      },
+    ],
+    metas: [
+      {
+        id: 900,
+        name: 'Viaje',
+        target_amount: '2000000.00',
+        currency: 'ARS',
+        starts_on: '2026-03-01',
+        target_date: '2026-12-31',
+        is_active: true,
+      },
+      {
+        id: 901,
+        name: 'Colchón',
+        target_amount: '500000.00',
+        currency: 'ARS',
+        starts_on: '2026-08-01',
+        target_date: null,
+        is_active: true,
+      },
+    ],
+    avanceDeMetas: [
+      {
+        goal_id: 900,
+        name: 'Viaje',
+        target: '2000000.00',
+        saved: '500000.00',
+        remaining: '1500000.00',
+        percentage: '25.00',
+        currency: 'ARS',
+        starts_on: '2026-03-01',
+        target_date: '2026-12-31',
+        status: 'AT_RISK',
+        projection: {
+          monthly_rate: '250000.00',
+          months_of_history: 5,
+          months_to_target: 6,
+          projected_date: '2027-02-01',
+        },
+      },
+      {
+        // Meta nueva: no hay dos meses cerrados, así que no se proyecta ni se
+        // arriesga un estado. La pantalla tiene que decirlo.
+        goal_id: 901,
+        name: 'Colchón',
+        target: '500000.00',
+        saved: '80000.00',
+        remaining: '420000.00',
+        percentage: '16.00',
+        currency: 'ARS',
+        starts_on: '2026-08-01',
+        target_date: null,
+        status: null,
+        projection: null,
       },
     ],
   }
@@ -487,6 +558,64 @@ export const handlers = [
     }
     if (alerta.status === 'OPEN') alerta.status = 'READ'
     return HttpResponse.json(alerta)
+  }),
+
+  // --- Metas de ahorro -----------------------------------------------------
+  http.get(`${BASE}/savings-goals`, () => HttpResponse.json(store.metas)),
+
+  http.get(`${BASE}/savings-goals/progress`, () => HttpResponse.json(store.avanceDeMetas)),
+
+  http.post(`${BASE}/savings-goals`, async ({ request }) => {
+    const cuerpo = (await request.json()) as {
+      name: string
+      target_amount: string
+      starts_on?: string
+      target_date?: string | null
+    }
+    if (store.metas.some((m) => m.name.toLowerCase() === cuerpo.name.toLowerCase())) {
+      return HttpResponse.json(
+        {
+          code: 'duplicate_resource',
+          message: 'Ya tenés una meta llamada «' + cuerpo.name + '».',
+          details: [],
+        },
+        { status: 409 },
+      )
+    }
+    const meta: SavingsGoal = {
+      id: 950,
+      name: cuerpo.name,
+      target_amount: cuerpo.target_amount,
+      currency: 'ARS',
+      starts_on: cuerpo.starts_on ?? '2026-09-01',
+      target_date: cuerpo.target_date ?? null,
+      is_active: true,
+    }
+    store.metas.push(meta)
+    return HttpResponse.json(meta, {
+      status: 201,
+      headers: { Location: `${BASE}/savings-goals/950` },
+    })
+  }),
+
+  http.patch(`${BASE}/savings-goals/:id`, async ({ params, request }) => {
+    const cuerpo = (await request.json()) as Record<string, unknown>
+    const meta = store.metas.find((m) => m.id === Number(params.id))
+    if (!meta) return new HttpResponse(null, { status: 404 })
+    if (typeof cuerpo.name === 'string') meta.name = cuerpo.name
+    if (typeof cuerpo.target_amount === 'string') meta.target_amount = cuerpo.target_amount
+    if (typeof cuerpo.starts_on === 'string') meta.starts_on = cuerpo.starts_on
+    // El flag gana sobre el campo: `target_date: null` significa «no lo toques».
+    if (cuerpo.clear_target_date === true) meta.target_date = null
+    else if (typeof cuerpo.target_date === 'string') meta.target_date = cuerpo.target_date
+    if (typeof cuerpo.is_active === 'boolean') meta.is_active = cuerpo.is_active
+    return HttpResponse.json(meta)
+  }),
+
+  http.delete(`${BASE}/savings-goals/:id`, ({ params }) => {
+    store.metas = store.metas.filter((m) => m.id !== Number(params.id))
+    store.avanceDeMetas = store.avanceDeMetas.filter((a) => a.goal_id !== Number(params.id))
+    return new HttpResponse(null, { status: 204 })
   }),
 
   /*

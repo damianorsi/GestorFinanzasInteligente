@@ -11,6 +11,7 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 import { RecurringPage } from '@/pages/RecurringPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { ReportsPage } from '@/pages/ReportsPage'
+import { SavingsGoalsPage } from '@/pages/SavingsGoalsPage'
 import { TransactionsPage } from '@/pages/TransactionsPage'
 import { RutaPrivada, RutaPublica } from '@/routes/guards'
 
@@ -31,6 +32,7 @@ export function App() {
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/budgets" element={<BudgetsPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
+          <Route path="/savings-goals" element={<SavingsGoalsPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/recurring" element={<RecurringPage />} />
           <Route path="/chat" element={<ChatPage />} />

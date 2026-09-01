@@ -1450,3 +1450,142 @@ h2 {
     flex: 1 1 45%;
   }
 }
+
+/* --- Metas de ahorro ------------------------------------------------------- */
+.metas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+  gap: var(--espacio);
+}
+
+.meta {
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-left: 4px solid var(--color-borde);
+  border-radius: var(--radio);
+  padding: var(--espacio);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.meta--on_track {
+  border-left-color: var(--color-primario);
+}
+
+.meta--at_risk {
+  border-left-color: var(--color-alerta);
+}
+
+.meta--achieved {
+  border-left-color: var(--color-ok);
+}
+
+/* Sin historial la barra lateral queda gris: el color dice "no sabemos", que
+   es distinto de "vas mal". */
+.meta--sin-datos {
+  border-left-color: var(--color-borde);
+}
+
+.meta__cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.meta__nombre {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.meta__cifras {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.meta__barra {
+  height: 0.6rem;
+  border-radius: 999px;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  overflow: hidden;
+}
+
+.meta__relleno {
+  display: block;
+  height: 100%;
+  background: var(--color-primario);
+}
+
+.meta--at_risk .meta__relleno {
+  background: var(--color-alerta);
+}
+
+.meta--achieved .meta__relleno {
+  background: var(--color-ok);
+}
+
+.meta--sin-datos .meta__relleno {
+  background: var(--color-texto-suave);
+}
+
+.meta__pie {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--espacio);
+  font-size: 0.85rem;
+  color: var(--color-texto-suave);
+}
+
+.meta__desde {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-texto-suave);
+}
+
+.meta__proyeccion {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radio);
+  background: color-mix(in srgb, var(--color-primario) 8%, transparent);
+  font-size: 0.9rem;
+}
+
+.meta__proyeccion--sin-datos {
+  background: color-mix(in srgb, var(--color-texto-suave) 10%, transparent);
+}
+
+/* La aclaracion de que es un promedio y no una prediccion no es letra chica
+   decorativa: vender una regla de tres como prediccion de IA es exactamente lo
+   que la especificacion pide no hacer. */
+.meta__aclaracion {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--color-texto-suave);
+}
+
+.meta__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: auto;
+  padding-top: 0.25rem;
+}
+
+@media (max-width: 52rem) {
+  .metas {
+    grid-template-columns: 1fr;
+  }
+
+  .meta__acciones .boton {
+    flex: 1 1 45%;
+  }
+}
